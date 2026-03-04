@@ -24,7 +24,7 @@ export default function DashboardPage() {
     <div>
       <PageHeader
         title="대시보드"
-        description="프로레 앱 콘텐츠 관리 현황"
+        description="프로리 솔루션 콘텐츠 관리 현황"
       />
 
       {/* 통계 카드 */}

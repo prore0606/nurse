@@ -11,7 +11,7 @@ const TYPE_TITLE: Record<string, string> = {
 };
 
 export const metadata = {
-  title: "프로레 스토어 - 간호사 학습 콘텐츠",
+  title: "프로리 솔루션",
 };
 
 export default async function StorePage({
@@ -35,8 +35,8 @@ export default async function StorePage({
       <div className="bg-primary">
         <div className="max-w-[1200px] mx-auto px-6 py-16 text-center">
           <h1 className="text-3xl font-bold text-white">{title}</h1>
-          <p className="text-primary-foreground/70 text-white/70 mt-2">
-            간호사 국가고시 합격을 위한 최고의 학습 자료
+          <p className="text-white/70 mt-2">
+            프로리 솔루션
           </p>
         </div>
       </div>

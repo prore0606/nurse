@@ -2,8 +2,8 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 
 export const metadata = {
-  title: "프로레 스토어",
-  description: "간호사 학습 콘텐츠 스토어",
+  title: "프로리 솔루션",
+  description: "프로리 솔루션 스토어",
 };
 
 export default function StoreLayout({
@@ -19,9 +19,8 @@ export default function StoreLayout({
         <div className="border-b border-gray-100">
           <div className="max-w-[1200px] mx-auto px-6 h-16 flex items-center justify-between gap-8">
             {/* 로고 */}
-            <Link href="/store" className="shrink-0 flex items-center gap-2">
-              <span className="text-2xl font-extrabold text-primary">프로레</span>
-              <span className="text-xs text-gray-400 hidden sm:block">간호사 학습 플랫폼</span>
+            <Link href="/store" className="shrink-0">
+              <span className="text-2xl font-extrabold text-primary">프로리 솔루션</span>
             </Link>
 
             {/* 검색바 */}
@@ -62,7 +61,7 @@ export default function StoreLayout({
       {/* 푸터 */}
       <footer className="bg-gray-900 text-gray-400 py-12">
         <div className="max-w-[1200px] mx-auto px-6 text-center text-sm">
-          <p>&copy; 2026 프로레. All rights reserved.</p>
+          <p>&copy; 2026 프로리 솔루션. All rights reserved.</p>
         </div>
       </footer>
     </>

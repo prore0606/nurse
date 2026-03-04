@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "프로레",
-  description: "간호사 학습 플랫폼",
+  title: "프로리 솔루션",
+  description: "프로리 솔루션",
 };
 
 export default function RootLayout({

@@ -63,7 +63,7 @@ export default function Sidebar() {
     <aside className="fixed left-0 top-0 h-full w-64 bg-sidebar-bg text-sidebar-text flex flex-col z-50">
       {/* 로고 */}
       <div className="h-16 flex items-center px-6 border-b border-gray-700">
-        <h1 className="text-xl font-bold text-white">프로레 관리자</h1>
+        <h1 className="text-xl font-bold text-white">프로리 솔루션</h1>
       </div>
 
       {/* 메뉴 */}

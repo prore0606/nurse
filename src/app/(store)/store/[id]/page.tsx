@@ -21,7 +21,7 @@ export async function generateMetadata({
   const subject = await fetchSubjectById(id);
   if (!subject) return { title: "상품을 찾을 수 없습니다" };
   return {
-    title: `${subject.name} - 프로레 스토어`,
+    title: `${subject.name} - 프로리 솔루션`,
     description: subject.description,
   };
 }
