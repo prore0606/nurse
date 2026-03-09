@@ -807,35 +807,58 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
 
       {/* ── 선택된 과목 상세 ── */}
       {selected && (
-        <div ref={detailRef} className="mt-4 space-y-4">
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <div ref={detailRef} className={`mt-4 ${type === "theory" ? "flex gap-4 items-start" : "space-y-4"}`}>
+          {/* ═══ 왼쪽: 기본 정보 ═══ */}
+          <div className={`bg-white rounded-xl border border-gray-200 p-5 ${type === "theory" ? "w-[380px] shrink-0 sticky top-4" : ""}`}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-gray-900"><span className="text-primary">{selected.name}</span> 기본 정보</h3>
               <button onClick={() => setSelectedId(null)} className="text-xs text-gray-400 hover:text-gray-600">접기</button>
             </div>
             <div className="space-y-3">
-              {/* 이미지 + 과목명/가격 나란히 */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1.5">대표 이미지</label>
-                  {editForm.imageUrl ? (
-                    <div className="relative aspect-video rounded-lg overflow-hidden border border-gray-200">
-                      <img src={editForm.imageUrl} alt="" className="w-full h-full object-cover" />
-                      <button type="button" onClick={() => { setEditForm((f) => ({ ...f, imageUrl: "" })); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center"><X size={12} /></button>
-                    </div>
-                  ) : (
-                    <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full aspect-video border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-1 text-gray-400 hover:border-primary hover:text-primary transition-colors"><ImagePlus size={22} /><span className="text-xs">이미지 업로드</span></button>
-                  )}
-                  <input ref={fileInputRef} type="file" accept="image/*" onChange={(e) => handleImageChange(e, "edit")} className="hidden" />
-                </div>
-                <div className="space-y-3">
+              {/* 이론 타입: 세로 배치 / 나머지: 가로 배치 */}
+              {type === "theory" ? (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1.5">대표 이미지</label>
+                    {editForm.imageUrl ? (
+                      <div className="relative aspect-video rounded-lg overflow-hidden border border-gray-200">
+                        <img src={editForm.imageUrl} alt="" className="w-full h-full object-cover" />
+                        <button type="button" onClick={() => { setEditForm((f) => ({ ...f, imageUrl: "" })); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center"><X size={12} /></button>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full aspect-video border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-1 text-gray-400 hover:border-primary hover:text-primary transition-colors"><ImagePlus size={22} /><span className="text-xs">이미지 업로드</span></button>
+                    )}
+                    <input ref={fileInputRef} type="file" accept="image/*" onChange={(e) => handleImageChange(e, "edit")} className="hidden" />
+                  </div>
                   <div><label className="block text-xs font-medium text-gray-500 mb-1">과목명 <span className="text-red-500">*</span></label><input type="text" value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" /></div>
                   <div className="grid grid-cols-2 gap-3">
                     <div><label className="block text-xs font-medium text-gray-500 mb-1">정가 <span className="text-red-500">*</span></label><input type="number" value={editForm.price} onChange={(e) => setEditForm((f) => ({ ...f, price: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" /></div>
                     <div><label className="block text-xs font-medium text-gray-500 mb-1">할인가</label><input type="number" value={editForm.discountPrice} onChange={(e) => setEditForm((f) => ({ ...f, discountPrice: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" /></div>
                   </div>
+                </>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1.5">대표 이미지</label>
+                    {editForm.imageUrl ? (
+                      <div className="relative aspect-video rounded-lg overflow-hidden border border-gray-200">
+                        <img src={editForm.imageUrl} alt="" className="w-full h-full object-cover" />
+                        <button type="button" onClick={() => { setEditForm((f) => ({ ...f, imageUrl: "" })); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center"><X size={12} /></button>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full aspect-video border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-1 text-gray-400 hover:border-primary hover:text-primary transition-colors"><ImagePlus size={22} /><span className="text-xs">이미지 업로드</span></button>
+                    )}
+                    <input ref={fileInputRef} type="file" accept="image/*" onChange={(e) => handleImageChange(e, "edit")} className="hidden" />
+                  </div>
+                  <div className="space-y-3">
+                    <div><label className="block text-xs font-medium text-gray-500 mb-1">과목명 <span className="text-red-500">*</span></label><input type="text" value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" /></div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div><label className="block text-xs font-medium text-gray-500 mb-1">정가 <span className="text-red-500">*</span></label><input type="number" value={editForm.price} onChange={(e) => setEditForm((f) => ({ ...f, price: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" /></div>
+                      <div><label className="block text-xs font-medium text-gray-500 mb-1">할인가</label><input type="number" value={editForm.discountPrice} onChange={(e) => setEditForm((f) => ({ ...f, discountPrice: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" /></div>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
               <div><label className="block text-xs font-medium text-gray-500 mb-1">설명</label><textarea value={editForm.description} onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" rows={2} placeholder="과목 설명" /></div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">설명 이미지</label>
@@ -850,11 +873,12 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          {/* ═══ 오른쪽: 콘텐츠 관리 ═══ */}
+          <div className={`bg-white rounded-xl border border-gray-200 p-5 ${type === "theory" ? "flex-1 min-w-0" : ""}`}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-gray-900"><span className="text-primary">{selected.name}</span> 콘텐츠 관리</h3>
               <div className="flex items-center gap-2">
-                <button onClick={() => setShowExcelUpload(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary border border-primary rounded-lg hover:bg-indigo-50 transition-colors"><FileSpreadsheet size={14} /> 엑셀 업로드</button>
+                {type !== "theory" && <button onClick={() => setShowExcelUpload(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary border border-primary rounded-lg hover:bg-indigo-50 transition-colors"><FileSpreadsheet size={14} /> 엑셀 업로드</button>}
                 <button onClick={() => setCreateTrigger((t) => t + 1)} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-hover transition-colors"><Plus size={14} /> {detailCfg.addLabel}</button>
               </div>
             </div>
@@ -862,7 +886,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
             {type === "problems" && <ProblemSection key={selectedId} createTrigger={createTrigger} />}
             {type === "videos" && <VideoSection key={selectedId} subjectId={selectedId ?? undefined} createTrigger={createTrigger} />}
             {type === "packages" && <PackageSection key={selectedId} createTrigger={createTrigger} />}
-            <ExcelUploadModal visible={showExcelUpload} onClose={() => setShowExcelUpload(false)} subjectType={type} subjectName={editForm.name} />
+            {type !== "theory" && <ExcelUploadModal visible={showExcelUpload} onClose={() => setShowExcelUpload(false)} subjectType={type} subjectName={editForm.name} />}
           </div>
         </div>
       )}
