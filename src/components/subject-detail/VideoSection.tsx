@@ -12,6 +12,7 @@ import {
   updateLecture as dbUpdateLecture,
   deleteLecture as dbDeleteLecture,
   renumberLectures as dbRenumberLectures,
+  renumberSections as dbRenumberSections,
 } from "../../lib/videoService";
 import ConfirmModal from "../ConfirmModal";
 import {
@@ -103,6 +104,122 @@ export default function VideoSection({ subjectId, createTrigger = 0, initialSect
 
   // ── 전역 강의 수 (number 자동 계산용) ──
   const totalLectureCount = sections.reduce((sum, s) => sum + s.lectures.length, 0);
+
+  // ── 드래그 앤 드롭 상태 ──
+  const dragItem = useRef<{ type: "section" | "lecture"; sectionId?: string; index: number } | null>(null);
+  const dragOverItem = useRef<{ type: "section" | "lecture"; sectionId?: string; index: number } | null>(null);
+
+  const handleSectionDragStart = (index: number) => {
+    dragItem.current = { type: "section", index };
+  };
+
+  const handleSectionDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    dragOverItem.current = { type: "section", index };
+  };
+
+  const handleSectionDrop = async () => {
+    if (!dragItem.current || !dragOverItem.current) return;
+    if (dragItem.current.type !== "section" || dragOverItem.current.type !== "section") return;
+
+    const from = dragItem.current.index;
+    const to = dragOverItem.current.index;
+    if (from === to) return;
+
+    const updated = [...sections];
+    const [moved] = updated.splice(from, 1);
+    updated.splice(to, 0, moved);
+    const renumbered = renumberAll(updated);
+    setSections(renumbered);
+
+    if (subjectId) {
+      try {
+        await dbRenumberSections(updated.map((s, i) => ({ id: s.id, orderNum: i })));
+        // 전역 번호도 DB에 반영
+        const allLectures = renumbered.flatMap((s) =>
+          s.lectures.map((l, li) => ({ id: l.id, number: l.number, orderNum: li })),
+        );
+        if (allLectures.length > 0) await dbRenumberLectures(allLectures);
+      } catch (err) {
+        console.error(err);
+        toast.error("순서 저장 실패");
+      }
+    }
+    dragItem.current = null;
+    dragOverItem.current = null;
+  };
+
+  const handleLectureDragStart = (sectionId: string, index: number) => {
+    dragItem.current = { type: "lecture", sectionId, index };
+  };
+
+  const handleLectureDragOver = (e: React.DragEvent, sectionId: string, index: number) => {
+    e.preventDefault();
+    dragOverItem.current = { type: "lecture", sectionId, index };
+  };
+
+  const handleLectureDrop = async (targetSectionId: string) => {
+    if (!dragItem.current || !dragOverItem.current) return;
+    if (dragItem.current.type !== "lecture" || dragOverItem.current.type !== "lecture") return;
+
+    const fromSection = dragItem.current.sectionId!;
+    const toSection = dragOverItem.current.sectionId!;
+    const fromIdx = dragItem.current.index;
+    const toIdx = dragOverItem.current.index;
+
+    if (fromSection === toSection && fromIdx === toIdx) return;
+
+    let updated = [...sections];
+
+    if (fromSection === toSection) {
+      // 같은 섹션 내 이동
+      updated = updated.map((s) => {
+        if (s.id !== fromSection) return s;
+        const lecs = [...s.lectures];
+        const [moved] = lecs.splice(fromIdx, 1);
+        lecs.splice(toIdx, 0, moved);
+        return { ...s, lectures: lecs };
+      });
+    } else {
+      // 섹션 간 이동
+      let movedLecture: Lecture | null = null;
+      updated = updated.map((s) => {
+        if (s.id === fromSection) {
+          const lecs = [...s.lectures];
+          [movedLecture] = lecs.splice(fromIdx, 1);
+          return { ...s, lectures: lecs };
+        }
+        return s;
+      });
+      if (movedLecture) {
+        updated = updated.map((s) => {
+          if (s.id === toSection) {
+            const lecs = [...s.lectures];
+            lecs.splice(toIdx, 0, movedLecture!);
+            return { ...s, lectures: lecs };
+          }
+          return s;
+        });
+      }
+    }
+
+    const renumbered = renumberAll(updated);
+    setSections(renumbered);
+
+    if (subjectId) {
+      try {
+        const allLectures = renumbered.flatMap((s) =>
+          s.lectures.map((l, li) => ({ id: l.id, number: l.number, orderNum: li })),
+        );
+        if (allLectures.length > 0) await dbRenumberLectures(allLectures);
+      } catch (err) {
+        console.error(err);
+        toast.error("순서 저장 실패");
+      }
+    }
+    dragItem.current = null;
+    dragOverItem.current = null;
+  };
 
   // ────────────────────── 섹션 CRUD ──────────────────────
 
@@ -372,16 +489,31 @@ export default function VideoSection({ subjectId, createTrigger = 0, initialSect
           </div>
         )}
 
-        {sections.map((section) => {
+        {sections.map((section, sectionIdx) => {
           const isExpanded = expandedId === section.id;
           return (
-            <div key={section.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div
+              key={section.id}
+              className="bg-white rounded-xl border border-gray-200 overflow-hidden"
+              draggable
+              onDragStart={() => handleSectionDragStart(sectionIdx)}
+              onDragOver={(e) => handleSectionDragOver(e, sectionIdx)}
+              onDrop={handleSectionDrop}
+              onDragEnd={() => { dragItem.current = null; dragOverItem.current = null; }}
+            >
               {/* 섹션 헤더 */}
               <div
                 className="flex items-center justify-between px-5 py-3.5 bg-gray-50/80 cursor-pointer hover:bg-gray-100/80 transition-colors"
                 onClick={() => setExpandedId(isExpanded ? null : section.id)}
               >
                 <div className="flex items-center gap-3">
+                  <div
+                    className="cursor-grab active:cursor-grabbing p-1 -ml-2 text-gray-300 hover:text-gray-500"
+                    onMouseDown={(e) => e.stopPropagation()}
+                    title="드래그하여 순서 변경"
+                  >
+                    <GripVertical size={16} />
+                  </div>
                   {isExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
                   <h4 className="text-sm font-semibold text-gray-900">{section.title}</h4>
                   <span className="text-xs text-gray-400 bg-gray-200/60 px-2 py-0.5 rounded-full">
@@ -421,8 +553,21 @@ export default function VideoSection({ subjectId, createTrigger = 0, initialSect
                       강의가 없습니다. &apos;강의 추가&apos; 버튼을 눌러 등록하세요.
                     </div>
                   ) : (
-                    section.lectures.map((lecture) => (
-                      <div key={lecture.id} className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50/50 transition-colors group">
+                    section.lectures.map((lecture, lectureIdx) => (
+                      <div
+                        key={lecture.id}
+                        className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50/50 transition-colors group"
+                        draggable
+                        onDragStart={(e) => { e.stopPropagation(); handleLectureDragStart(section.id, lectureIdx); }}
+                        onDragOver={(e) => { e.stopPropagation(); handleLectureDragOver(e, section.id, lectureIdx); }}
+                        onDrop={(e) => { e.stopPropagation(); handleLectureDrop(section.id); }}
+                        onDragEnd={() => { dragItem.current = null; dragOverItem.current = null; }}
+                      >
+                        {/* 드래그 핸들 */}
+                        <div className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 shrink-0">
+                          <GripVertical size={14} />
+                        </div>
+
                         {/* 순서 번호 */}
                         <span className="w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">
                           {lecture.number}

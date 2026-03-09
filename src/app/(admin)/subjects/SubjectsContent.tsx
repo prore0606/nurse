@@ -555,14 +555,12 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
 
                 {/* 설명 이미지 */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">설명 이미지 <span className="text-xs text-gray-400">최대 5장</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">설명 이미지</label>
                   <div className="grid grid-cols-5 gap-2">
                     {wizardForm.descriptionImages.map((img, i) => (
                       <ImagePreview key={i} src={img} onRemove={() => setWizardForm((f) => ({ ...f, descriptionImages: f.descriptionImages.filter((_, idx) => idx !== i) }))} size="sm" />
                     ))}
-                    {wizardForm.descriptionImages.length < 5 && (
-                      <ImageAddButton onClick={() => pickImage((url) => setWizardForm((f) => ({ ...f, descriptionImages: [...f.descriptionImages, url] })))} size="sm" />
-                    )}
+                    <ImageAddButton onClick={() => pickImage((url) => setWizardForm((f) => ({ ...f, descriptionImages: [...f.descriptionImages, url] })))} size="sm" />
                   </div>
                 </div>
               </div>
@@ -674,14 +672,12 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
 
                 {/* 설명 이미지 */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">설명 이미지 <span className="text-xs text-gray-400">최대 5장</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">설명 이미지</label>
                   <div className="grid grid-cols-5 gap-2">
                     {wizardForm.descriptionImages.map((img, i) => (
                       <ImagePreview key={i} src={img} onRemove={() => setWizardForm((f) => ({ ...f, descriptionImages: f.descriptionImages.filter((_, idx) => idx !== i) }))} size="sm" />
                     ))}
-                    {wizardForm.descriptionImages.length < 5 && (
-                      <ImageAddButton onClick={() => pickImage((url) => setWizardForm((f) => ({ ...f, descriptionImages: [...f.descriptionImages, url] })))} size="sm" />
-                    )}
+                    <ImageAddButton onClick={() => pickImage((url) => setWizardForm((f) => ({ ...f, descriptionImages: [...f.descriptionImages, url] })))} size="sm" />
                   </div>
                 </div>
               </div>
@@ -841,10 +837,10 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
               </div>
               <div><label className="block text-xs font-medium text-gray-500 mb-1">설명</label><textarea value={editForm.description} onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" rows={2} placeholder="과목 설명" /></div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">설명 이미지 <span className="text-xs text-gray-400">최대 5장</span></label>
-                <div className="flex gap-2">
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">설명 이미지</label>
+                <div className="flex flex-wrap gap-2">
                   {editForm.descriptionImages.map((img, i) => (<ImagePreview key={i} src={img} onRemove={() => setEditForm((f) => ({ ...f, descriptionImages: f.descriptionImages.filter((_, idx) => idx !== i) }))} size="sm" />))}
-                  {editForm.descriptionImages.length < 5 && (<ImageAddButton onClick={() => pickImage((url) => setEditForm((f) => ({ ...f, descriptionImages: [...f.descriptionImages, url] })))} size="sm" />)}
+                  <ImageAddButton onClick={() => pickImage((url) => setEditForm((f) => ({ ...f, descriptionImages: [...f.descriptionImages, url] })))} size="sm" />
                 </div>
               </div>
               <div className="flex justify-end pt-1">

@@ -276,3 +276,16 @@ export async function renumberLectures(
     if (error) throw error;
   }
 }
+
+/** 섹션들의 order_num을 일괄 업데이트 */
+export async function renumberSections(
+  sections: { id: string; orderNum: number }[],
+): Promise<void> {
+  for (const s of sections) {
+    const { error } = await supabase
+      .from("video_sections")
+      .update({ order_num: s.orderNum })
+      .eq("id", s.id);
+    if (error) throw error;
+  }
+}

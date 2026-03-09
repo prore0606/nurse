@@ -14,73 +14,53 @@ export default function StoreLayout({
   return (
     <>
       {/* 상단 헤더 */}
-      <header className="sticky top-0 z-50 bg-white shadow-sm">
-        {/* 1행: 로고 + 검색 */}
-        <div className="border-b border-gray-100">
-          <div className="max-w-[1200px] mx-auto px-6 h-16 flex items-center justify-between gap-8">
-            {/* 로고 */}
-            <Link href="/store" className="shrink-0">
-              <span className="text-2xl font-extrabold text-primary">프로리 솔루션</span>
-            </Link>
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-200/60">
+        <div className="max-w-[1200px] mx-auto px-6 h-16 flex items-center justify-between gap-8">
+          {/* 로고 */}
+          <Link href="/store" className="shrink-0">
+            <span className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+              프로리 솔루션
+            </span>
+          </Link>
 
-            {/* 검색바 */}
-            <div className="flex-1 max-w-md">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search"
-                  className="w-full h-10 pl-4 pr-10 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-                <Search
-                  size={18}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-                />
-              </div>
+          {/* 검색바 */}
+          <div className="flex-1 max-w-md">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="강의, 문제풀이 검색"
+                className="w-full h-10 pl-4 pr-10 bg-gray-100/80 border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:bg-white transition-all placeholder:text-gray-400"
+              />
+              <Search
+                size={18}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
             </div>
-
-            {/* 우측 여백 (로그인 등 나중에 추가) */}
-            <div className="shrink-0 w-20" />
           </div>
+
+          {/* 우측 여백 (로그인 등 나중에 추가) */}
+          <div className="shrink-0 w-20" />
         </div>
-
-        {/* 2행: 네비게이션 */}
-        <nav className="border-b border-gray-200">
-          <div className="max-w-[1200px] mx-auto px-6 flex items-center gap-8 h-12">
-            <NavLink href="/store?type=theory">이론</NavLink>
-            <NavLink href="/store?type=problems">문제풀이</NavLink>
-            <NavLink href="/store?type=videos">영상 강의</NavLink>
-            <NavLink href="/store?type=packages">패키지</NavLink>
-            <NavLink href="/store">전체</NavLink>
-          </div>
-        </nav>
       </header>
 
       {/* 메인 콘텐츠 */}
-      <main className="min-h-screen bg-white">{children}</main>
+      <main className="min-h-screen bg-gray-50/50">{children}</main>
 
       {/* 푸터 */}
-      <footer className="bg-gray-900 text-gray-400 py-12">
-        <div className="max-w-[1200px] mx-auto px-6 text-center text-sm">
-          <p>&copy; 2026 프로리 솔루션. All rights reserved.</p>
+      <footer className="bg-gray-900 text-gray-400">
+        <div className="max-w-[1200px] mx-auto px-6 py-16">
+          <div className="flex items-start justify-between mb-10">
+            <div>
+              <span className="text-xl font-extrabold text-white tracking-tight">프로리 솔루션</span>
+              <p className="text-sm text-gray-500 mt-2">간호사 국가고시 합격의 시작</p>
+            </div>
+          </div>
+          <div className="border-t border-gray-800 pt-6 text-center text-sm text-gray-500">
+            <p>&copy; 2026 프로리 솔루션. All rights reserved.</p>
+          </div>
         </div>
       </footer>
     </>
   );
 }
 
-function NavLink({
-  href,
-  children,
-}: {
-  href: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      className="text-sm font-medium text-gray-600 hover:text-primary transition-colors py-3 border-b-2 border-transparent hover:border-primary"
-    >
-      {children}
-    </Link>
-  );
-}
