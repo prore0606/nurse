@@ -7,12 +7,14 @@ import ExcelUploadModal from "@/components/ExcelUploadModal";
 import ImagePreview from "@/components/ImagePreview";
 import ImageAddButton from "@/components/ImageAddButton";
 import TheorySection from "@/components/subject-detail/TheorySection";
-import ProblemSection from "@/components/subject-detail/ProblemSection";
+import TheoryAppPreview from "@/components/subject-detail/TheoryAppPreview";
+import ProblemAppPreview from "@/components/subject-detail/ProblemAppPreview";
+import ProblemSectionComponent from "@/components/subject-detail/ProblemSection";
 import VideoSection from "@/components/subject-detail/VideoSection";
 import PackageSection from "@/components/subject-detail/PackageSection";
 import { Plus, FileSpreadsheet, Pencil, Trash2, ImagePlus, X, Save, ChevronDown, ChevronUp, ArrowLeft, ArrowRight, Check, Video, Loader2, CheckCircle, AlertCircle, Link } from "lucide-react";
 import toast from "react-hot-toast";
-import type { Subject, SubjectType, Lecture } from "@/types";
+import type { Subject, SubjectType, Lecture, TheoryChapter, ProblemSection as ProblemSectionType } from "@/types";
 import { extractVimeoId, buildVimeoUrl } from "@/utils/vimeo";
 import { initialSubjects } from "@/data/subjects";
 import { SUBJECT_TYPE_CONFIG, DETAIL_TYPE_CONFIG } from "@/constants/subjectConfig";
@@ -58,7 +60,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
 
   // ── 영상/이론 타입인 경우 Supabase에서 과목 목록 로드 ──
   useEffect(() => {
-    if (type !== "videos" && type !== "theory") return;
+    if (type !== "videos" && type !== "theory" && type !== "problems") return;
     setLoading(true);
     fetchVideoSubjects()
       .then((allSubjects) => {
@@ -83,6 +85,8 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
   const [deleteTarget, setDeleteTarget] = useState<Subject | null>(null);
   const [createTrigger, setCreateTrigger] = useState(0);
   const [showExcelUpload, setShowExcelUpload] = useState(false);
+  const [theoryChapters, setTheoryChapters] = useState<TheoryChapter[]>([]);
+  const [problemSections, setProblemSections] = useState<ProblemSectionType[]>([]);
 
   // 기본정보 수정 폼 (목록에서 선택 시)
   const [editForm, setEditForm] = useState({
@@ -112,7 +116,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
   const hasReadyVideo = vimeoItems.some((v) => v.fetchStatus === "success" && !!v.vimeoId);
 
   const isVideoType = type === "videos";
-  const isSupabaseType = type === "videos" || type === "theory";
+  const isSupabaseType = type === "videos" || type === "theory" || type === "problems";
 
   /** Vimeo oEmbed API (개별 아이템) */
   const fetchVimeoItemInfo = useCallback(async (itemId: string, videoId: string) => {
@@ -187,7 +191,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
-    if (deleteTarget.type === "videos" || deleteTarget.type === "theory") {
+    if (deleteTarget.type === "videos" || deleteTarget.type === "theory" || deleteTarget.type === "problems") {
       try {
         await deleteVideoSubject(deleteTarget.id);
       } catch (err) {
@@ -223,7 +227,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
     if (!selectedId) return;
 
     const sel = subjects.find((s) => s.id === selectedId);
-    if (sel?.type === "videos" || sel?.type === "theory") {
+    if (sel?.type === "videos" || sel?.type === "theory" || sel?.type === "problems") {
       try {
         await updateVideoSubject(selectedId, {
           name: editForm.name,
@@ -709,7 +713,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
               </div>
 
               {type === "theory" && newSubjectId && <TheorySection key={newSubjectId} subjectId={newSubjectId} createTrigger={wizardCreateTrigger} />}
-              {type === "problems" && <ProblemSection key={newSubjectId} createTrigger={wizardCreateTrigger} initialData={[]} />}
+              {type === "problems" && newSubjectId && <ProblemSectionComponent key={newSubjectId} subjectId={newSubjectId} createTrigger={wizardCreateTrigger} />}
               {type === "packages" && <PackageSection key={newSubjectId} createTrigger={wizardCreateTrigger} initialData={[]} />}
 
               <ExcelUploadModal visible={wizardExcelUpload} onClose={() => setWizardExcelUpload(false)} subjectType={type} subjectName={wizardForm.name} />
@@ -744,6 +748,10 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
           </button>
         }
       />
+
+      {/* ── 이론/문제풀이: 왼쪽(테이블+상세) + 오른쪽(앱 미리보기) ── */}
+      <div className={(type === "theory" || type === "problems") ? "flex gap-6 items-start" : ""}>
+      <div className={(type === "theory" || type === "problems") ? "flex-1 min-w-0" : ""}>
 
       {/* ── 과목 테이블 ── */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -807,37 +815,15 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
 
       {/* ── 선택된 과목 상세 ── */}
       {selected && (
-        <div ref={detailRef} className={`mt-4 ${type === "theory" ? "flex gap-4 items-start" : "space-y-4"}`}>
+        <div ref={detailRef} className="mt-4 space-y-4">
           {/* ═══ 왼쪽: 기본 정보 ═══ */}
-          <div className={`bg-white rounded-xl border border-gray-200 p-5 ${type === "theory" ? "w-[380px] shrink-0 sticky top-4" : ""}`}>
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-gray-900"><span className="text-primary">{selected.name}</span> 기본 정보</h3>
               <button onClick={() => setSelectedId(null)} className="text-xs text-gray-400 hover:text-gray-600">접기</button>
             </div>
             <div className="space-y-3">
-              {/* 이론 타입: 세로 배치 / 나머지: 가로 배치 */}
-              {type === "theory" ? (
-                <>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1.5">대표 이미지</label>
-                    {editForm.imageUrl ? (
-                      <div className="relative aspect-video rounded-lg overflow-hidden border border-gray-200">
-                        <img src={editForm.imageUrl} alt="" className="w-full h-full object-cover" />
-                        <button type="button" onClick={() => { setEditForm((f) => ({ ...f, imageUrl: "" })); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center"><X size={12} /></button>
-                      </div>
-                    ) : (
-                      <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full aspect-video border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-1 text-gray-400 hover:border-primary hover:text-primary transition-colors"><ImagePlus size={22} /><span className="text-xs">이미지 업로드</span></button>
-                    )}
-                    <input ref={fileInputRef} type="file" accept="image/*" onChange={(e) => handleImageChange(e, "edit")} className="hidden" />
-                  </div>
-                  <div><label className="block text-xs font-medium text-gray-500 mb-1">과목명 <span className="text-red-500">*</span></label><input type="text" value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" /></div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div><label className="block text-xs font-medium text-gray-500 mb-1">정가 <span className="text-red-500">*</span></label><input type="number" value={editForm.price} onChange={(e) => setEditForm((f) => ({ ...f, price: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" /></div>
-                    <div><label className="block text-xs font-medium text-gray-500 mb-1">할인가</label><input type="number" value={editForm.discountPrice} onChange={(e) => setEditForm((f) => ({ ...f, discountPrice: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" /></div>
-                  </div>
-                </>
-              ) : (
-                <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1.5">대표 이미지</label>
                     {editForm.imageUrl ? (
@@ -858,7 +844,6 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
                     </div>
                   </div>
                 </div>
-              )}
               <div><label className="block text-xs font-medium text-gray-500 mb-1">설명</label><textarea value={editForm.description} onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" rows={2} placeholder="과목 설명" /></div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">설명 이미지</label>
@@ -874,24 +859,37 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
           </div>
 
           {/* ═══ 오른쪽: 콘텐츠 관리 ═══ */}
-          <div className={`bg-white rounded-xl border border-gray-200 p-5 ${type === "theory" ? "flex-1 min-w-0" : ""}`}>
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-gray-900"><span className="text-primary">{selected.name}</span> 콘텐츠 관리</h3>
               <div className="flex items-center gap-2">
-                {type !== "theory" && <button onClick={() => setShowExcelUpload(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary border border-primary rounded-lg hover:bg-indigo-50 transition-colors"><FileSpreadsheet size={14} /> 엑셀 업로드</button>}
-                <button onClick={() => setCreateTrigger((t) => t + 1)} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-hover transition-colors"><Plus size={14} /> {detailCfg.addLabel}</button>
+                {type !== "theory" && type !== "problems" && <button onClick={() => setShowExcelUpload(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary border border-primary rounded-lg hover:bg-indigo-50 transition-colors"><FileSpreadsheet size={14} /> 엑셀 업로드</button>}
+                {type !== "problems" && <button onClick={() => setCreateTrigger((t) => t + 1)} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-hover transition-colors"><Plus size={14} /> {detailCfg.addLabel}</button>}
               </div>
             </div>
-            {type === "theory" && selectedId && <TheorySection key={selectedId} subjectId={selectedId} createTrigger={createTrigger} />}
-            {type === "problems" && <ProblemSection key={selectedId} createTrigger={createTrigger} />}
+            {type === "theory" && selectedId && <TheorySection key={selectedId} subjectId={selectedId} createTrigger={createTrigger} onChaptersChange={setTheoryChapters} />}
+            {type === "problems" && selectedId && <ProblemSectionComponent key={selectedId} subjectId={selectedId} createTrigger={createTrigger} onSectionsChange={setProblemSections} />}
             {type === "videos" && <VideoSection key={selectedId} subjectId={selectedId ?? undefined} createTrigger={createTrigger} />}
             {type === "packages" && <PackageSection key={selectedId} createTrigger={createTrigger} />}
             {type !== "theory" && <ExcelUploadModal visible={showExcelUpload} onClose={() => setShowExcelUpload(false)} subjectType={type} subjectName={editForm.name} />}
           </div>
+
         </div>
       )}
 
       <ConfirmModal visible={!!deleteTarget} message={deleteTarget ? `"${deleteTarget.name}" 과목을 삭제하시겠습니까?\n관련 콘텐츠가 모두 삭제됩니다.` : ""} onConfirm={confirmDelete} onCancel={() => setDeleteTarget(null)} />
+
+      </div>{/* end flex-1 left column */}
+
+      {/* ═══ 오른쪽: 앱 미리보기 (이론/문제풀이, 항상 표시) ═══ */}
+      {type === "theory" && selectedId && (
+        <TheoryAppPreview bookTitle={editForm.name} chapters={theoryChapters} />
+      )}
+      {type === "problems" && selectedId && (
+        <ProblemAppPreview bookTitle={editForm.name} sections={problemSections} />
+      )}
+
+      </div>{/* end flex row wrapper */}
     </div>
   );
 }

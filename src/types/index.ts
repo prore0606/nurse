@@ -48,13 +48,40 @@ export interface Theory {
   isActive: boolean;
 }
 
-// ─── Problem ───
+// ─── Problem (prore-app 구조: Section → Question) ───
+export interface ProblemQuestionChoice {
+  id: string;       // "a", "b", "c", "d" ...
+  text: string;
+  image?: string;    // admin 확장: 선택지 이미지
+}
+
+export type Difficulty = "easy" | "medium" | "hard";
+
+export interface ProblemQuestion {
+  id: string;
+  number: number;
+  text: string;
+  textImage: string;                    // 문제 이미지 (admin 확장)
+  choices: ProblemQuestionChoice[];
+  correctAnswer: string;                // choice id (prore-app과 동일)
+  explanation: string;
+  explanationImage: string;             // 해설 이미지 (admin 확장)
+  difficulty: Difficulty;               // admin 확장
+  orderNum: number;
+}
+
+export interface ProblemSection {
+  id: string;
+  title: string;                        // "01. 의학용어 기초"
+  orderNum: number;
+  questions: ProblemQuestion[];
+}
+
+// 하위 호환용 (기존 flat 구조 - 점진적 제거 예정)
 export interface ProblemChoice {
   text: string;
   image: string;
 }
-
-export type Difficulty = "easy" | "medium" | "hard";
 
 export interface Problem {
   id: string;

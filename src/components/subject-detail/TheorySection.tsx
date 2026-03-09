@@ -37,9 +37,10 @@ function cleanFileName(name: string): string {
 interface TheorySectionProps {
   subjectId: string;
   createTrigger?: number;
+  onChaptersChange?: (chapters: TheoryChapter[]) => void;
 }
 
-export default function TheorySection({ subjectId, createTrigger = 0 }: TheorySectionProps) {
+export default function TheorySection({ subjectId, createTrigger = 0, onChaptersChange }: TheorySectionProps) {
   const [chapters, setChapters] = useState<TheoryChapter[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedChapterId, setExpandedChapterId] = useState<string | null>(null);
@@ -80,6 +81,7 @@ export default function TheorySection({ subjectId, createTrigger = 0 }: TheorySe
       setLoading(true);
       const data = await fetchChaptersWithTopics(subjectId);
       setChapters(data);
+      onChaptersChange?.(data);
       if (data.length > 0 && !expandedChapterId) {
         setExpandedChapterId(data[0].id);
       }

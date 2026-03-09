@@ -10,8 +10,8 @@ export default function AdminLayout({
   return (
     <>
       <Suspense><Sidebar /></Suspense>
-      <main className="ml-64 min-h-screen p-8">
-        <div className="w-full">{children}</div>
+      <main className="ml-64 min-h-screen p-6 max-w-[1600px]">
+        {children}
       </main>
       <Toaster position="top-right" />
     </>
