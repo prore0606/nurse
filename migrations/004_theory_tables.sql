@@ -1,7 +1,8 @@
 -- ─── 이론 챕터 (video_sections와 동일 패턴) ───
+-- video_subjects.id가 TEXT 타입이므로 subject_id도 TEXT로 맞춤
 CREATE TABLE theory_chapters (
-  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  subject_id UUID NOT NULL REFERENCES video_subjects(id) ON DELETE CASCADE,
+  id         TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  subject_id TEXT NOT NULL REFERENCES video_subjects(id) ON DELETE CASCADE,
   number     INT NOT NULL,
   title      TEXT NOT NULL,
   order_num  INT NOT NULL DEFAULT 0,
@@ -12,8 +13,8 @@ CREATE INDEX idx_theory_chapters_subject ON theory_chapters(subject_id);
 
 -- ─── 이론 토픽 (video_lectures와 동일 패턴) ───
 CREATE TABLE theory_topics (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  chapter_id   UUID NOT NULL REFERENCES theory_chapters(id) ON DELETE CASCADE,
+  id           TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  chapter_id   TEXT NOT NULL REFERENCES theory_chapters(id) ON DELETE CASCADE,
   title        TEXT NOT NULL,
   content_type TEXT NOT NULL DEFAULT 'file' CHECK (content_type IN ('file', 'text', 'mixed')),
   content_urls TEXT[] NOT NULL DEFAULT '{}',
