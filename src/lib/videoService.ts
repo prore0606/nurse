@@ -83,7 +83,7 @@ export async function fetchVideoSubjects(): Promise<Subject[]> {
 }
 
 export async function createVideoSubject(
-  subject: Omit<Subject, "type" | "contentCount" | "chapterCount" | "createdAt">,
+  subject: Omit<Subject, "contentCount" | "chapterCount" | "createdAt">,
 ): Promise<Subject> {
   const { data, error } = await supabase
     .from("video_subjects")
@@ -96,7 +96,7 @@ export async function createVideoSubject(
       discount_price: subject.discountPrice ?? null,
       is_active: subject.isActive,
       order_num: subject.order,
-      type: "videos",
+      type: subject.type ?? "videos",
     })
     .select()
     .single();

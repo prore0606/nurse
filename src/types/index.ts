@@ -17,7 +17,26 @@ export interface Subject {
   createdAt: string;
 }
 
-// ─── Theory ───
+// ─── Theory (계층 구조: Chapter → Topic, prore-app과 동일) ───
+export interface TheoryTopic {
+  id: string;
+  title: string;
+  contentType: "file" | "text" | "mixed";
+  contentUrls: string[];   // Supabase Storage URL 배열
+  body: string;
+  hasNote: boolean;
+  orderNum: number;
+}
+
+export interface TheoryChapter {
+  id: string;
+  number: number;
+  title: string;
+  orderNum: number;
+  topics: TheoryTopic[];
+}
+
+// 하위 호환용 (기존 flat 구조 - 점진적 제거 예정)
 export interface Theory {
   id: string;
   chapter: string;

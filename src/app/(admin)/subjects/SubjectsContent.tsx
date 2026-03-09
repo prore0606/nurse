@@ -56,20 +56,20 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
   const filtered = subjects.filter((s) => s.type === type);
   const [loading, setLoading] = useState(false);
 
-  // ── 영상 타입인 경우 Supabase에서 과목 목록 로드 ──
+  // ── 영상/이론 타입인 경우 Supabase에서 과목 목록 로드 ──
   useEffect(() => {
-    if (type !== "videos") return;
+    if (type !== "videos" && type !== "theory") return;
     setLoading(true);
     fetchVideoSubjects()
-      .then((videoSubjects) => {
+      .then((allSubjects) => {
         setSubjects((prev) => [
-          ...prev.filter((s) => s.type !== "videos"),
-          ...videoSubjects,
+          ...prev.filter((s) => s.type !== type),
+          ...allSubjects.filter((s) => s.type === type),
         ]);
       })
       .catch((err) => {
-        console.error("영상 과목 로드 실패:", err);
-        toast.error("영상 과목을 불러오지 못했습니다");
+        console.error("과목 로드 실패:", err);
+        toast.error("과목을 불러오지 못했습니다");
       })
       .finally(() => setLoading(false));
   }, [type]);
@@ -112,6 +112,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
   const hasReadyVideo = vimeoItems.some((v) => v.fetchStatus === "success" && !!v.vimeoId);
 
   const isVideoType = type === "videos";
+  const isSupabaseType = type === "videos" || type === "theory";
 
   /** Vimeo oEmbed API (개별 아이템) */
   const fetchVimeoItemInfo = useCallback(async (itemId: string, videoId: string) => {
@@ -186,7 +187,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
-    if (deleteTarget.type === "videos") {
+    if (deleteTarget.type === "videos" || deleteTarget.type === "theory") {
       try {
         await deleteVideoSubject(deleteTarget.id);
       } catch (err) {
@@ -222,7 +223,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
     if (!selectedId) return;
 
     const sel = subjects.find((s) => s.id === selectedId);
-    if (sel?.type === "videos") {
+    if (sel?.type === "videos" || sel?.type === "theory") {
       try {
         await updateVideoSubject(selectedId, {
           name: editForm.name,
@@ -276,7 +277,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
         createdAt: new Date().toISOString().split("T")[0],
       };
 
-      if (isVideoType) {
+      if (isSupabaseType) {
         try {
           await createVideoSubject(newSubject);
         } catch (err) {
@@ -290,7 +291,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
       setNewSubjectId(id);
     } else {
       // 이미 생성된 경우 정보 업데이트
-      if (isVideoType) {
+      if (isSupabaseType) {
         try {
           await updateVideoSubject(newSubjectId, {
             name: wizardForm.name,
@@ -335,7 +336,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
   const cancelWizard = async () => {
     // 이미 생성된 과목 삭제
     if (newSubjectId) {
-      if (isVideoType) {
+      if (isSupabaseType) {
         try { await deleteVideoSubject(newSubjectId); } catch { /* 무시 */ }
       }
       setSubjects((prev) => prev.filter((s) => s.id !== newSubjectId));
@@ -707,7 +708,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
                 </div>
               </div>
 
-              {type === "theory" && <TheorySection key={newSubjectId} createTrigger={wizardCreateTrigger} initialData={[]} />}
+              {type === "theory" && newSubjectId && <TheorySection key={newSubjectId} subjectId={newSubjectId} createTrigger={wizardCreateTrigger} />}
               {type === "problems" && <ProblemSection key={newSubjectId} createTrigger={wizardCreateTrigger} initialData={[]} />}
               {type === "packages" && <PackageSection key={newSubjectId} createTrigger={wizardCreateTrigger} initialData={[]} />}
 
@@ -857,7 +858,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
                 <button onClick={() => setCreateTrigger((t) => t + 1)} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-hover transition-colors"><Plus size={14} /> {detailCfg.addLabel}</button>
               </div>
             </div>
-            {type === "theory" && <TheorySection key={selectedId} createTrigger={createTrigger} />}
+            {type === "theory" && selectedId && <TheorySection key={selectedId} subjectId={selectedId} createTrigger={createTrigger} />}
             {type === "problems" && <ProblemSection key={selectedId} createTrigger={createTrigger} />}
             {type === "videos" && <VideoSection key={selectedId} subjectId={selectedId ?? undefined} createTrigger={createTrigger} />}
             {type === "packages" && <PackageSection key={selectedId} createTrigger={createTrigger} />}
