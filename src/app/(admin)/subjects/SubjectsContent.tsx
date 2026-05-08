@@ -122,7 +122,8 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
   const fetchVimeoItemInfo = useCallback(async (itemId: string, videoId: string) => {
     setVimeoItems((prev) => prev.map((v) => v.id === itemId ? { ...v, fetchStatus: "loading" as FetchStatus } : v));
     try {
-      const res = await fetch(`https://vimeo.com/api/oembed.json?url=https://vimeo.com/${videoId}`);
+      const oembedUrl = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(`https://vimeo.com/${videoId}`)}`;
+      const res = await fetch(oembedUrl);
       if (!res.ok) throw new Error("not found");
       const data = await res.json();
       const dur = data.duration as number | undefined;

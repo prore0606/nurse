@@ -1,45 +1,55 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { BookOpen, HelpCircle, Video, Package, LayoutGrid } from "lucide-react";
 import type { SubjectType } from "@/types";
 
-const CATEGORIES: { id: SubjectType | "all"; label: string; icon: typeof BookOpen }[] = [
-  { id: "all", label: "전체", icon: LayoutGrid },
-  { id: "theory", label: "이론", icon: BookOpen },
-  { id: "problems", label: "문제풀이", icon: HelpCircle },
-  { id: "videos", label: "영상 강의", icon: Video },
-  { id: "packages", label: "패키지", icon: Package },
+const CATEGORIES: { id: SubjectType | "all"; label: string; emoji: string }[] = [
+  { id: "all",      label: "전체",     emoji: "🗂" },
+  { id: "theory",   label: "이론",     emoji: "📖" },
+  { id: "problems", label: "문제풀이", emoji: "✏️" },
+  { id: "videos",   label: "영상 강의", emoji: "🎬" },
+  { id: "packages", label: "패키지",   emoji: "📦" },
 ];
 
-export default function CategoryFilter({
-  currentType,
-}: {
-  currentType?: SubjectType;
-}) {
+export default function CategoryFilter({ currentType }: { currentType?: SubjectType }) {
   const router = useRouter();
 
   return (
-    <div className="sticky top-16 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-200/60">
-      <div className="max-w-[1200px] mx-auto px-6 py-4">
-        <div className="inline-flex items-center bg-gray-100/80 rounded-2xl p-1.5 gap-1">
+    <div style={{
+      position: "sticky", top: 64, zIndex: 40,
+      background: "rgba(255,255,255,0.97)",
+      backdropFilter: "blur(16px)",
+      borderBottom: "1px solid rgba(0,0,0,0.06)",
+    }}>
+      <div style={{ maxWidth: 1080, margin: "0 auto", padding: "0 24px" }}>
+        <div style={{
+          display: "flex", gap: 6, overflowX: "auto",
+          padding: "14px 0", scrollbarWidth: "none",
+          msOverflowStyle: "none",
+        } as React.CSSProperties}>
           {CATEGORIES.map((cat) => {
-            const isActive =
-              cat.id === "all" ? !currentType : currentType === cat.id;
-            const Icon = cat.icon;
+            const isActive = cat.id === "all" ? !currentType : currentType === cat.id;
             return (
               <button
                 key={cat.id}
-                onClick={() =>
-                  router.push(cat.id === "all" ? "/store" : `/store?type=${cat.id}`)
-                }
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                  isActive
-                    ? "bg-white text-gray-900 shadow-sm shadow-gray-200/50"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
+                onClick={() => router.push(cat.id === "all" ? "/store" : `/store?type=${cat.id}`)}
+                style={{
+                  flexShrink: 0,
+                  display: "flex", alignItems: "center", gap: 5,
+                  padding: "8px 16px",
+                  borderRadius: 22,
+                  border: isActive ? "none" : "1.5px solid #e5e7eb",
+                  background: isActive ? "#6366f1" : "#fff",
+                  color: isActive ? "#fff" : "#6b7280",
+                  fontSize: 13,
+                  fontWeight: isActive ? 700 : 500,
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                  boxShadow: isActive ? "0 2px 10px rgba(99,102,241,0.3)" : "none",
+                  letterSpacing: "-0.01em",
+                }}
               >
-                <Icon size={16} strokeWidth={isActive ? 2.5 : 2} />
+                <span style={{ fontSize: 13 }}>{cat.emoji}</span>
                 {cat.label}
               </button>
             );

@@ -8,7 +8,7 @@ function toPublicSubject(row: Record<string, unknown>): Subject {
     name: row.name as string,
     description: (row.description as string) ?? "",
     imageUrl: (row.image_url as string) ?? "",
-    descriptionImages: (row.description_images as string[]) ?? [],
+    descriptionImages: [],
     price: (row.price as number) ?? 0,
     discountPrice: (row.discount_price as number) ?? undefined,
     contentCount: 0,

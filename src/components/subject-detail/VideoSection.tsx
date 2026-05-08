@@ -432,7 +432,8 @@ export default function VideoSection({ subjectId, createTrigger = 0, initialSect
   const fetchVimeoInfo = useCallback(async (videoId: string) => {
     setFetchStatus("loading");
     try {
-      const res = await fetch(`https://vimeo.com/api/oembed.json?url=https://vimeo.com/${videoId}`);
+      const oembedUrl = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(`https://vimeo.com/${videoId}`)}`;
+      const res = await fetch(oembedUrl);
       if (!res.ok) throw new Error("not found");
       const data = await res.json();
       const dur = data.duration as number | undefined;

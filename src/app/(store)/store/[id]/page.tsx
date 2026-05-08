@@ -5,11 +5,11 @@ import { formatPrice } from "@/utils/format";
 import type { SubjectType } from "@/types";
 import PurchaseButton from "./PurchaseButton";
 
-const TYPE_LABEL: Record<SubjectType, string> = {
-  theory: "이론",
-  problems: "문제풀이",
-  videos: "영상 강의",
-  packages: "패키지",
+const TYPE_CONFIG: Record<SubjectType, { label: string; bg: string; color: string }> = {
+  theory:   { label: "이론",    bg: "#eff6ff", color: "#3b82f6" },
+  problems: { label: "문제풀이", bg: "#f0fdf4", color: "#16a34a" },
+  videos:   { label: "영상 강의", bg: "#faf5ff", color: "#9333ea" },
+  packages: { label: "패키지",  bg: "#fff7ed", color: "#ea580c" },
 };
 
 export async function generateMetadata({
@@ -35,119 +35,157 @@ export default async function SubjectDetailPage({
   const subject = await fetchSubjectById(id);
   if (!subject) notFound();
 
+  const cfg = TYPE_CONFIG[subject.type];
   const hasDiscount =
     subject.discountPrice != null && subject.discountPrice < subject.price;
   const discountPercent = hasDiscount
     ? Math.round((1 - subject.discountPrice! / subject.price) * 100)
     : 0;
+  const finalPrice = hasDiscount ? subject.discountPrice! : subject.price;
 
   return (
-    <>
-      {/* 히어로 배너 */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-primary to-blue-600">
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-white/10 blur-3xl" />
-          <div className="absolute -bottom-32 -left-32 w-[500px] h-[500px] rounded-full bg-blue-400/15 blur-3xl" />
-        </div>
-        <div className="absolute inset-0 opacity-[0.04]" style={{
-          backgroundImage: `radial-gradient(circle at 1px 1px, white 1px, transparent 0)`,
-          backgroundSize: '40px 40px',
-        }} />
-        <div className="relative max-w-[1200px] mx-auto px-6 py-14 text-center">
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">{subject.name}</h1>
-          <p className="text-white/60 mt-2 font-medium">{subject.description}</p>
-        </div>
-      </div>
+    <div style={{ maxWidth: 1080, margin: "0 auto", padding: "32px 24px 80px" }}>
+      {/* 브레드크럼 */}
+      <nav style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 32 }}>
+        <Link href="/store" style={{ fontSize: 13, color: "#9ca3af", textDecoration: "none", fontWeight: 500, transition: "color 0.15s" }}>
+          스토어
+        </Link>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+          <path d="M9 18l6-6-6-6" stroke="#d1d5db" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        <span style={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>{subject.name}</span>
+      </nav>
 
-      <div className="max-w-[1200px] mx-auto px-6 py-12">
-        {/* 브레드크럼 */}
-        <nav className="text-sm text-gray-400 mb-10 font-medium">
-          <Link
-            href="/store"
-            className="hover:text-primary transition-colors"
-          >
-            스토어
-          </Link>
-          <span className="mx-2 text-gray-300">/</span>
-          <span className="text-gray-700">{subject.name}</span>
-        </nav>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-          {/* 왼쪽: 이미지 */}
-          <div className="relative aspect-square rounded-3xl overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 shadow-sm">
+      {/* 메인 레이아웃 */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 380px",
+        gap: 48,
+        alignItems: "start",
+      }}>
+        {/* 왼쪽: 이미지 */}
+        <div>
+          <div style={{
+            borderRadius: 24,
+            overflow: "hidden",
+            aspectRatio: "16/9",
+            background: `linear-gradient(135deg, ${cfg.bg}, #f3f4f6)`,
+            border: "1px solid #f0f0f5",
+          }}>
             {subject.imageUrl ? (
               <img
                 src={subject.imageUrl}
                 alt={subject.name}
-                className="w-full h-full object-cover"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <div className="w-28 h-28 rounded-3xl bg-gradient-to-br from-primary/10 to-blue-500/10 flex items-center justify-center">
-                  <span className="text-6xl opacity-50">📚</span>
+              <div style={{
+                width: "100%", height: "100%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <div style={{
+                  width: 120, height: 120, borderRadius: 28,
+                  background: `linear-gradient(135deg, ${cfg.bg}, #e0e7ff)`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  border: `1px solid ${cfg.bg}`,
+                }}>
+                  <span style={{ fontSize: 52, opacity: 0.5 }}>📚</span>
                 </div>
               </div>
             )}
           </div>
 
-          {/* 오른쪽: 정보 */}
-          <div>
-            <span className="inline-flex items-center px-3.5 py-1.5 rounded-lg text-xs font-bold bg-primary/8 text-primary mb-5">
-              {TYPE_LABEL[subject.type]}
+          {/* 상세 설명 이미지 */}
+          {subject.descriptionImages && subject.descriptionImages.length > 0 && (
+            <div style={{ marginTop: 48 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 800, color: "#111827", marginBottom: 24, letterSpacing: "-0.03em" }}>
+                상세 정보
+              </h2>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {subject.descriptionImages.map((img, i) => (
+                  <img
+                    key={i}
+                    src={img}
+                    alt={`상세 이미지 ${i + 1}`}
+                    style={{ width: "100%", borderRadius: 16 }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 오른쪽: 구매 패널 (sticky) */}
+        <div style={{ position: "sticky", top: 100 }}>
+          <div style={{
+            background: "#fff",
+            borderRadius: 24,
+            border: "1px solid #f0f0f5",
+            padding: "28px 24px",
+            boxShadow: "0 4px 24px rgba(0,0,0,0.05)",
+          }}>
+            {/* 타입 뱃지 */}
+            <span style={{
+              display: "inline-block", marginBottom: 14,
+              padding: "4px 12px", borderRadius: 20,
+              background: cfg.bg, color: cfg.color,
+              fontSize: 12, fontWeight: 700,
+            }}>
+              {cfg.label}
             </span>
-            <h2 className="text-3xl font-extrabold text-gray-900 mb-4 tracking-tight leading-tight">
+
+            {/* 상품명 */}
+            <h1 style={{
+              fontSize: 22, fontWeight: 800, color: "#111827",
+              lineHeight: 1.35, letterSpacing: "-0.03em",
+              margin: "0 0 10px",
+            }}>
               {subject.name}
-            </h2>
-            <p className="text-gray-500 mb-10 leading-relaxed text-base">
+            </h1>
+
+            {/* 설명 */}
+            <p style={{
+              fontSize: 14, color: "#6b7280", lineHeight: 1.7,
+              margin: "0 0 24px",
+            }}>
               {subject.description}
             </p>
 
-            {/* 가격 블록 */}
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-2xl p-7 mb-8">
-              {hasDiscount ? (
-                <div>
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-extrabold bg-rose-500/10 text-rose-500 mb-3">
+            {/* 구분선 */}
+            <div style={{ height: 1, background: "#f3f4f6", marginBottom: 24 }} />
+
+            {/* 가격 */}
+            <div style={{ marginBottom: 24 }}>
+              {hasDiscount && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <span style={{
+                    padding: "3px 8px", borderRadius: 8,
+                    background: "#fef2f2", color: "#ef4444",
+                    fontSize: 12, fontWeight: 800,
+                  }}>
                     {discountPercent}% 할인
                   </span>
-                  <div className="flex items-baseline gap-3">
-                    <span className="text-4xl font-extrabold text-gray-900 tracking-tight">
-                      {formatPrice(subject.discountPrice!)}
-                    </span>
-                    <span className="text-lg text-gray-300 line-through font-medium">
-                      {formatPrice(subject.price)}
-                    </span>
-                  </div>
+                  <span style={{ fontSize: 14, color: "#d1d5db", textDecoration: "line-through", fontWeight: 500 }}>
+                    {formatPrice(subject.price)}
+                  </span>
                 </div>
-              ) : (
-                <span className="text-4xl font-extrabold text-gray-900 tracking-tight">
-                  {formatPrice(subject.price)}
-                </span>
               )}
+              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                <span style={{ fontSize: 30, fontWeight: 800, color: "#111827", letterSpacing: "-0.04em" }}>
+                  {formatPrice(finalPrice)}
+                </span>
+              </div>
             </div>
 
             {/* 구매 버튼 */}
             <PurchaseButton
               subjectId={subject.id}
               subjectName={subject.name}
+              price={finalPrice}
             />
           </div>
         </div>
-
-        {/* 상세 설명 이미지 */}
-        {subject.descriptionImages && subject.descriptionImages.length > 0 && (
-          <div className="mt-20 space-y-4">
-            <h2 className="text-2xl font-extrabold text-gray-900 mb-8 tracking-tight">상세 정보</h2>
-            {subject.descriptionImages.map((img, i) => (
-              <img
-                key={i}
-                src={img}
-                alt={`상세 이미지 ${i + 1}`}
-                className="w-full rounded-2xl"
-              />
-            ))}
-          </div>
-        )}
       </div>
-    </>
+    </div>
   );
 }
