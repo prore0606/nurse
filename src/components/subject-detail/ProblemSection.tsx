@@ -44,15 +44,17 @@ function parseExcelRows(text: string): {
 
   return lines.slice(1).map((line) => {
     const cols = line.split("\t");
-    // 형식: 섹션 | 문제 | 선택지1 | 선택지2 | 선택지3 | 선택지4 | 선택지5 | 정답(a~e) | 해설 | 난이도
-    const sectionTitle = cols[0]?.trim() ?? "";
-    const questionText = cols[1]?.trim() ?? "";
-    const choiceTexts = [cols[2], cols[3], cols[4], cols[5], cols[6]].filter((c) => c?.trim());
+    // 형식: 분류코드 | 문제유형 | 문제 | 객관식 예문1 | 객관식 예문2 | 객관식 예문3 | 객관식 예문4 | 객관식 예문5 | 정답 | 해설
+    const code = cols[0]?.trim() ?? "";
+    const sectionTitle = code ? `분류 ${code}` : "기본 섹션";
+    // cols[1] = 문제유형 (현재 무시)
+    const questionText = cols[2]?.trim() ?? "";
+    const choiceTexts = [cols[3], cols[4], cols[5], cols[6], cols[7]].filter((c) => c?.trim());
     const choices = choiceTexts.map((t, i) => ({ id: CHOICE_IDS[i], text: t?.trim() ?? "" }));
-    const correctAnswer = cols[7]?.trim().toLowerCase() ?? "a";
-    const explanation = cols[8]?.trim() ?? "";
-    const diffRaw = cols[9]?.trim().toLowerCase() ?? "medium";
-    const difficulty = (["easy", "medium", "hard"].includes(diffRaw) ? diffRaw : "medium") as Difficulty;
+    const ansNum = Number(cols[8]?.trim() ?? "1");
+    const correctAnswer = CHOICE_IDS[Math.max(0, Math.min(ansNum - 1, choices.length - 1))];
+    const explanation = cols[9]?.trim() ?? "";
+    const difficulty: Difficulty = "medium";
 
     return { sectionTitle, questionText, choices, correctAnswer, explanation, difficulty };
   });
@@ -557,7 +559,7 @@ export default function ProblemSectionComponent({ subjectId, createTrigger = 0, 
               <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-700">
                 <p className="font-semibold mb-1">형식 안내 (탭으로 구분)</p>
                 <code className="block text-xs bg-blue-100 rounded p-2 mt-1 overflow-x-auto whitespace-pre">
-                  섹션{"\t"}문제{"\t"}선택지1{"\t"}선택지2{"\t"}선택지3{"\t"}선택지4{"\t"}선택지5{"\t"}정답(a~e){"\t"}해설{"\t"}난이도(easy/medium/hard)
+                  분류코드{"\t"}문제유형{"\t"}문제{"\t"}객관식 예문1{"\t"}객관식 예문2{"\t"}객관식 예문3{"\t"}객관식 예문4{"\t"}객관식 예문5{"\t"}정답{"\t"}해설
                 </code>
                 <p className="text-xs mt-2 text-blue-600">첫 줄은 헤더로 무시됩니다. 엑셀에서 복사 후 붙여넣기하면 자동으로 탭 구분됩니다.</p>
               </div>
@@ -577,7 +579,7 @@ export default function ProblemSectionComponent({ subjectId, createTrigger = 0, 
                 onChange={(e) => setExcelText(e.target.value)}
                 className="w-full px-3 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary font-mono"
                 rows={12}
-                placeholder={"섹션\t문제\t선택지1\t선택지2\t선택지3\t선택지4\t선택지5\t정답\t해설\t난이도\n01. 의학용어\tCardio의 의미는?\t폐\t심장\t간\t신장\t위\tb\tCardio는 심장을 뜻합니다\tmedium"}
+                placeholder={"분류코드\t문제유형\t문제\t객관식 예문1\t객관식 예문2\t객관식 예문3\t객관식 예문4\t객관식 예문5\t정답\t해설\n14\t1\t다음 중 심장벽 구성 순서로 옳은 것은?\t...\t...\t...\t...\t...\t3\t심장벽은 안쪽부터 ..."}
               />
 
               {/* 미리보기 */}

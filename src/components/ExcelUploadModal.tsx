@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import * as XLSX from "xlsx";
-import type { SubjectType, ParsedRow, UploadResult, Difficulty } from "../types";
+import type { SubjectType, ParsedRow, UploadResult } from "../types";
 import { UPLOAD_TYPES } from "../data/excelConfig";
 import {
   createChapter,
@@ -86,7 +86,13 @@ async function uploadTheoryRows(subjectId: string, rows: ParsedRow[]): Promise<U
   return result;
 }
 
-/** 문제 엑셀 → problem_sections + problem_questions 로 인서트 (problemService.bulkInsertProblems 재사용) */
+/** 문제 엑셀 → problem_sections + problem_questions 로 인서트.
+ *
+ * 컬럼: 분류코드 | 문제유형 | 문제 | 객관식 예문1~5 | 정답 | 해설
+ * - 분류코드: 같은 코드끼리 한 섹션으로 묶음 (없으면 "기본 섹션")
+ * - 문제유형: 무시 (현재 객관식만 지원)
+ * - 정답: 1~5 숫자
+ */
 async function uploadProblemRows(subjectId: string, rows: ParsedRow[]): Promise<UploadResult> {
   const parsed: Parameters<typeof bulkInsertProblems>[1] = [];
   const errors: { row: number; message: string }[] = [];
@@ -94,35 +100,33 @@ async function uploadProblemRows(subjectId: string, rows: ParsedRow[]): Promise<
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     try {
-      const sectionTitle = asString(row["챕터"]);
-      const questionText = asString(row["문제내용"]);
-      if (!sectionTitle || !questionText) throw new Error("챕터·문제내용 필수");
+      const code = asString(row["분류코드"]);
+      const sectionTitle = code ? `분류 ${code}` : "기본 섹션";
+      const questionText = asString(row["문제"]);
+      if (!questionText) throw new Error("문제 필수");
 
       const choices = CHOICE_KEYS
         .map((id, idx) => ({
           id: id as string,
-          text: asString(row[`선택지${idx + 1}`]),
-          image: asString(row[`선택지${idx + 1}_이미지URL`]) || undefined,
+          text: asString(row[`객관식 예문${idx + 1}`]),
         }))
-        .filter((c) => c.text || c.image);
+        .filter((c) => c.text);
 
       if (choices.length < 2) throw new Error("선택지 2개 이상 필요");
 
-      const ansNum = Number(asString(row["정답번호"]));
-      const correctAnswer = CHOICE_KEYS[Math.max(0, Math.min(ansNum - 1, choices.length - 1))];
-
-      const diffRaw = asString(row["난이도(easy/medium/hard)"] ?? row["난이도"]).toLowerCase();
-      const difficulty: Difficulty = (["easy", "medium", "hard"].includes(diffRaw) ? diffRaw : "medium") as Difficulty;
+      const ansNum = Number(asString(row["정답"]));
+      if (!Number.isFinite(ansNum) || ansNum < 1 || ansNum > choices.length) {
+        throw new Error(`정답 번호 잘못됨 (1~${choices.length} 범위 필요, 입력값 ${asString(row["정답"]) || "비어있음"})`);
+      }
+      const correctAnswer = CHOICE_KEYS[ansNum - 1];
 
       parsed.push({
         sectionTitle,
         questionText,
-        questionImage: asString(row["문제이미지URL"]) || undefined,
         choices,
         correctAnswer,
         explanation: asString(row["해설"]) || undefined,
-        explanationImage: asString(row["해설이미지URL"]) || undefined,
-        difficulty,
+        difficulty: "medium",
       });
     } catch (err) {
       errors.push({ row: i + 1, message: err instanceof Error ? err.message : String(err) });
@@ -225,16 +229,32 @@ export default function ExcelUploadModal({ visible, onClose, subjectType, subjec
     if (!file) return;
     setFileName(file.name);
     setUploadResult(null);
+    const isCSV = file.name.toLowerCase().endsWith(".csv");
     const reader = new FileReader();
     reader.onload = (evt) => {
-      const data = evt.target?.result;
-      const workbook = XLSX.read(data, { type: "binary" });
+      let workbook: XLSX.WorkBook;
+      if (isCSV) {
+        // CSV는 한글 인코딩 깨짐 방지를 위해 ArrayBuffer로 읽고
+        // UTF-8 우선 → 실패 시 EUC-KR(한국어 Excel CSV 기본)로 디코딩
+        const buf = evt.target?.result as ArrayBuffer;
+        let text: string;
+        try {
+          text = new TextDecoder("utf-8", { fatal: true }).decode(buf);
+        } catch {
+          text = new TextDecoder("euc-kr").decode(buf);
+        }
+        workbook = XLSX.read(text, { type: "string" });
+      } else {
+        const data = evt.target?.result;
+        workbook = XLSX.read(data, { type: "binary" });
+      }
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json<ParsedRow>(worksheet);
       setParsedData(jsonData);
       toast.success(`${jsonData.length}개 행을 읽었습니다`);
     };
-    reader.readAsBinaryString(file);
+    if (isCSV) reader.readAsArrayBuffer(file);
+    else reader.readAsBinaryString(file);
     e.target.value = "";
   }, []);
 
