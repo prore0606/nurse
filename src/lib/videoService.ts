@@ -143,6 +143,19 @@ export async function deleteVideoSubject(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/** 과목 목록의 order_num을 일괄 업데이트 (드래그 재정렬용) */
+export async function renumberVideoSubjects(
+  subjects: { id: string; orderNum: number }[],
+): Promise<void> {
+  for (const s of subjects) {
+    const { error } = await supabase
+      .from("video_subjects")
+      .update({ order_num: s.orderNum })
+      .eq("id", s.id);
+    if (error) throw error;
+  }
+}
+
 // ─── video_sections + video_lectures (과목별 전체 로드) ───
 
 export async function fetchSectionsWithLectures(

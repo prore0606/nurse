@@ -12,7 +12,7 @@ import ProblemAppPreview from "@/components/subject-detail/ProblemAppPreview";
 import ProblemSectionComponent from "@/components/subject-detail/ProblemSection";
 import VideoSection from "@/components/subject-detail/VideoSection";
 import PackageSection from "@/components/subject-detail/PackageSection";
-import { Plus, FileSpreadsheet, Pencil, Trash2, ImagePlus, X, Save, ChevronDown, ChevronUp, ArrowLeft, ArrowRight, Check, Video, Loader2, CheckCircle, AlertCircle, Link } from "lucide-react";
+import { Plus, FileSpreadsheet, Pencil, Trash2, ImagePlus, X, Save, ChevronDown, ChevronUp, ArrowLeft, ArrowRight, Check, Video, Loader2, CheckCircle, AlertCircle, Link, GripVertical } from "lucide-react";
 import toast from "react-hot-toast";
 import type { Subject, SubjectType, Lecture, TheoryChapter, ProblemSection as ProblemSectionType } from "@/types";
 import { extractVimeoId, buildVimeoUrl } from "@/utils/vimeo";
@@ -25,6 +25,7 @@ import {
   createVideoSubject,
   updateVideoSubject,
   deleteVideoSubject,
+  renumberVideoSubjects,
 } from "@/lib/videoService";
 
 
@@ -120,6 +121,44 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
 
   const isVideoType = type === "videos";
   const isSupabaseType = type === "videos" || type === "theory" || type === "problems";
+
+  // ── 과목 순서 드래그앤드롭 ──
+  const dragSubject = useRef<{ index: number } | null>(null);
+  const dragOverSubject = useRef<{ index: number } | null>(null);
+
+  const handleSubjectDragStart = (index: number) => { dragSubject.current = { index }; };
+  const handleSubjectDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    dragOverSubject.current = { index };
+  };
+  const handleSubjectDrop = async () => {
+    if (!dragSubject.current || !dragOverSubject.current) return;
+    const fromIdx = dragSubject.current.index;
+    const toIdx = dragOverSubject.current.index;
+    dragSubject.current = null;
+    dragOverSubject.current = null;
+    if (fromIdx === toIdx) return;
+
+    // filtered(현재 type 과목들) 기준 재정렬
+    const reordered = [...filtered];
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+
+    // 로컬 즉시 반영
+    setSubjects((prev) => {
+      const idMap = new Map(reordered.map((s, i) => [s.id, i]));
+      return prev.map((s) => (s.type === type && idMap.has(s.id) ? { ...s, order: idMap.get(s.id)! } : s));
+    });
+
+    if (isSupabaseType) {
+      try {
+        await renumberVideoSubjects(reordered.map((s, i) => ({ id: s.id, orderNum: i })));
+      } catch (err) {
+        console.error(err);
+        toast.error("순서 저장 실패");
+      }
+    }
+  };
 
   /** Vimeo oEmbed API (개별 아이템) */
   const fetchVimeoItemInfo = useCallback(async (itemId: string, videoId: string) => {
@@ -762,6 +801,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
+              <th className="w-8" />
               <th className="text-left text-xs font-medium text-gray-500 px-5 py-3">과목명</th>
               <th className="text-left text-xs font-medium text-gray-500 px-5 py-3 w-28">정가</th>
               <th className="text-left text-xs font-medium text-gray-500 px-5 py-3 w-28">할인가</th>
@@ -773,13 +813,27 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
           <tbody className="divide-y divide-gray-100">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-16 text-sm text-gray-400">
+                <td colSpan={7} className="text-center py-16 text-sm text-gray-400">
                   등록된 과목이 없습니다. &apos;과목 추가&apos; 버튼을 눌러 시작하세요.
                 </td>
               </tr>
             ) : (
-              filtered.map((s) => (
-                <tr key={s.id} onClick={() => toggleSubject(s.id)} className={`cursor-pointer transition-colors ${selectedId === s.id ? "bg-primary/5" : "hover:bg-gray-50"}`}>
+              filtered.map((s, sIdx) => (
+                <tr
+                  key={s.id}
+                  draggable
+                  onDragStart={() => handleSubjectDragStart(sIdx)}
+                  onDragOver={(e) => handleSubjectDragOver(e, sIdx)}
+                  onDrop={() => handleSubjectDrop()}
+                  onDragEnd={() => { dragSubject.current = null; dragOverSubject.current = null; }}
+                  onClick={() => toggleSubject(s.id)}
+                  className={`cursor-pointer transition-colors ${selectedId === s.id ? "bg-primary/5" : "hover:bg-gray-50"}`}
+                >
+                  <td className="px-2 py-3.5 text-gray-300 hover:text-gray-500" onClick={(e) => e.stopPropagation()} title="드래그하여 순서 변경">
+                    <div className="cursor-grab active:cursor-grabbing flex items-center justify-center">
+                      <GripVertical size={14} />
+                    </div>
+                  </td>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-3">
                       {s.imageUrl ? (
