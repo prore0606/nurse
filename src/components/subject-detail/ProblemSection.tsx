@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { ProblemSection as ProblemSectionType, ProblemQuestion, ProblemQuestionChoice, Difficulty } from "../../types";
 import {
   fetchSectionsWithQuestions,
@@ -10,13 +10,12 @@ import {
   createQuestion,
   updateQuestion,
   deleteQuestion,
-  bulkInsertProblems,
 } from "../../lib/problemService";
 import ConfirmModal from "../ConfirmModal";
 import FormModal from "../FormModal";
 import {
   Plus, Pencil, Trash2, ChevronDown, ChevronUp,
-  Loader2, Upload, FileText, CirclePlus, ImagePlus, X,
+  Loader2, FileText, CirclePlus,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -27,31 +26,6 @@ function nextChoiceId(choices: ProblemQuestionChoice[]): string {
     if (!choices.find((ch) => ch.id === c)) return c;
   }
   return crypto.randomUUID().slice(0, 4);
-}
-
-// ─── 엑셀 파싱 유틸 ───
-function parseExcelRows(text: string): {
-  sectionTitle: string;
-  questionText: string;
-  choices: { id: string; text: string }[];
-  correctAnswer: string;
-  explanation?: string;
-}[] {
-  const lines = text.split("\n").filter((l) => l.trim());
-  if (lines.length < 2) return [];
-
-  return lines.slice(1).map((line) => {
-    const cols = line.split("\t");
-    // 형식: 문제 | 객관식 예문1 | 객관식 예문2 | 객관식 예문3 | 객관식 예문4 | 객관식 예문5 | 정답 | 해설
-    const questionText = cols[0]?.trim() ?? "";
-    const choiceTexts = [cols[1], cols[2], cols[3], cols[4], cols[5]].filter((c) => c?.trim());
-    const choices = choiceTexts.map((t, i) => ({ id: CHOICE_IDS[i], text: t?.trim() ?? "" }));
-    const ansNum = Number(cols[6]?.trim() ?? "1");
-    const correctAnswer = CHOICE_IDS[Math.max(0, Math.min(ansNum - 1, choices.length - 1))];
-    const explanation = cols[7]?.trim() ?? "";
-
-    return { sectionTitle: "기본 섹션", questionText, choices, correctAnswer, explanation };
-  });
 }
 
 // ─── 문제 편집 폼 ───
@@ -105,12 +79,6 @@ export default function ProblemSectionComponent({ subjectId, createTrigger = 0, 
   const [editingQuestion, setEditingQuestion] = useState<ProblemQuestion | null>(null);
   const [questionSectionId, setQuestionSectionId] = useState<string>("");
   const [questionForm, setQuestionForm] = useState<QuestionForm>(emptyQuestionForm());
-
-  // 엑셀 대량 등록
-  const [showExcelUpload, setShowExcelUpload] = useState(false);
-  const [excelText, setExcelText] = useState("");
-  const [excelUploading, setExcelUploading] = useState(false);
-  const excelFileRef = useRef<HTMLInputElement>(null);
 
   // 삭제 확인
   const [deleteTarget, setDeleteTarget] = useState<{ type: "section" | "question"; id: string; title: string } | null>(null);
@@ -257,38 +225,6 @@ export default function ProblemSectionComponent({ subjectId, createTrigger = 0, 
   };
 
   // ══════════════════════════════════════
-  // 엑셀 대량 등록
-  // ══════════════════════════════════════
-  const handleExcelFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = ev.target?.result as string;
-      setExcelText(text);
-    };
-    reader.readAsText(file);
-    e.target.value = "";
-  };
-
-  const handleExcelUpload = async () => {
-    const rows = parseExcelRows(excelText);
-    if (rows.length === 0) { toast.error("유효한 데이터가 없습니다"); return; }
-    try {
-      setExcelUploading(true);
-      const result = await bulkInsertProblems(subjectId, rows);
-      toast.success(`${result.success}개 문제 등록 완료${result.failed > 0 ? ` (${result.failed}개 실패)` : ""}`);
-      if (result.errors.length > 0) {
-        console.error("대량 등록 오류:", result.errors);
-      }
-      setShowExcelUpload(false);
-      setExcelText("");
-      await loadData();
-    } catch { toast.error("대량 등록에 실패했습니다"); }
-    finally { setExcelUploading(false); }
-  };
-
-  // ══════════════════════════════════════
   // 삭제
   // ══════════════════════════════════════
   const handleConfirmDelete = async () => {
@@ -320,9 +256,6 @@ export default function ProblemSectionComponent({ subjectId, createTrigger = 0, 
           {sections.length}개 섹션 · 문제 {totalQuestions}개
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setShowExcelUpload(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">
-            <Upload size={14} /> 엑셀 대량등록
-          </button>
           <button onClick={openCreateSection} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
             <Plus size={14} /> 섹션 추가
           </button>
@@ -335,12 +268,9 @@ export default function ProblemSectionComponent({ subjectId, createTrigger = 0, 
           <div className="text-center py-16 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
             <FileText size={40} className="mx-auto text-gray-300 mb-3" />
             <p className="text-gray-400 mb-4">등록된 문제가 없습니다</p>
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex items-center justify-center">
               <button onClick={openCreateSection} className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
                 <Plus size={16} /> 섹션 추가
-              </button>
-              <button onClick={() => setShowExcelUpload(true)} className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">
-                <Upload size={16} /> 엑셀 대량등록
               </button>
             </div>
           </div>
@@ -510,93 +440,6 @@ export default function ProblemSectionComponent({ subjectId, createTrigger = 0, 
           </div>
         </div>
       </FormModal>
-
-      {/* ══════════════════════════════════════ */}
-      {/* 엑셀 대량 등록 모달 */}
-      {/* ══════════════════════════════════════ */}
-      {showExcelUpload && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => { if (!excelUploading) setShowExcelUpload(false); }} />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
-            {/* 헤더 */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">엑셀 대량 등록</h2>
-                <p className="text-xs text-gray-400 mt-0.5">TSV(탭 구분) 또는 엑셀에서 복사한 데이터를 붙여넣으세요</p>
-              </div>
-              <button onClick={() => { if (!excelUploading) setShowExcelUpload(false); }} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* 본문 */}
-            <div className="p-6 overflow-y-auto flex-1 space-y-4">
-              {/* 형식 안내 */}
-              <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-700">
-                <p className="font-semibold mb-1">형식 안내 (탭으로 구분)</p>
-                <code className="block text-xs bg-blue-100 rounded p-2 mt-1 overflow-x-auto whitespace-pre">
-                  문제{"\t"}객관식 예문1{"\t"}객관식 예문2{"\t"}객관식 예문3{"\t"}객관식 예문4{"\t"}객관식 예문5{"\t"}정답{"\t"}해설
-                </code>
-                <p className="text-xs mt-2 text-blue-600">첫 줄은 헤더로 무시됩니다. 엑셀에서 복사 후 붙여넣기하면 자동으로 탭 구분됩니다.</p>
-              </div>
-
-              {/* 파일 업로드 또는 텍스트 붙여넣기 */}
-              <div className="flex items-center gap-3">
-                <button onClick={() => excelFileRef.current?.click()}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
-                  <Upload size={14} /> TSV/CSV 파일 불러오기
-                </button>
-                <input ref={excelFileRef} type="file" accept=".tsv,.csv,.txt" onChange={handleExcelFileSelect} className="hidden" />
-                <span className="text-xs text-gray-400">또는 아래에 직접 붙여넣기</span>
-              </div>
-
-              <textarea
-                value={excelText}
-                onChange={(e) => setExcelText(e.target.value)}
-                className="w-full px-3 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary font-mono"
-                rows={12}
-                placeholder={"문제\t객관식 예문1\t객관식 예문2\t객관식 예문3\t객관식 예문4\t객관식 예문5\t정답\t해설\n다음 중 심장벽 구성 순서로 옳은 것은?\t...\t...\t...\t...\t...\t3\t심장벽은 안쪽부터 ..."}
-              />
-
-              {/* 미리보기 */}
-              {excelText.trim() && (() => {
-                const parsed = parseExcelRows(excelText);
-                return (
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <p className="text-sm font-medium text-gray-700 mb-2">미리보기: {parsed.length}개 문제 감지</p>
-                    <div className="max-h-40 overflow-y-auto space-y-1">
-                      {parsed.slice(0, 10).map((row, i) => (
-                        <div key={i} className="text-xs text-gray-600 flex items-center gap-2">
-                          <span className="font-medium text-gray-400 w-6">{i + 1}</span>
-                          <span className="bg-green-50 text-green-700 px-1.5 py-0.5 rounded text-[10px]">{row.sectionTitle}</span>
-                          <span className="truncate">{row.questionText}</span>
-                          <span className="text-gray-400 shrink-0">{row.choices.length}지선다</span>
-                        </div>
-                      ))}
-                      {parsed.length > 10 && <p className="text-xs text-gray-400">... 외 {parsed.length - 10}개</p>}
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-
-            {/* 푸터 */}
-            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 shrink-0 bg-gray-50">
-              <span className="text-xs text-gray-400">같은 섹션명은 자동으로 그룹핑됩니다</span>
-              <div className="flex items-center gap-3">
-                <button onClick={() => setShowExcelUpload(false)} disabled={excelUploading}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50">
-                  취소
-                </button>
-                <button onClick={handleExcelUpload} disabled={excelUploading || !excelText.trim()}
-                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2">
-                  {excelUploading ? <><Loader2 size={14} className="animate-spin" /> 등록 중...</> : <><Upload size={14} /> 대량 등록</>}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 삭제 확인 */}
       <ConfirmModal visible={!!deleteTarget}
