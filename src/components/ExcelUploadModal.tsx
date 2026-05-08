@@ -7,17 +7,183 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import * as XLSX from "xlsx";
-import type { SubjectType, ParsedRow, UploadResult } from "../types";
+import type { SubjectType, ParsedRow, UploadResult, Difficulty } from "../types";
 import { UPLOAD_TYPES } from "../data/excelConfig";
+import {
+  createChapter,
+  createTopic,
+} from "../lib/theoryService";
+import { bulkInsertProblems } from "../lib/problemService";
+import {
+  createSection as createVideoSection,
+  createLecture,
+} from "../lib/videoService";
 
 interface ExcelUploadModalProps {
   visible: boolean;
   onClose: () => void;
   subjectType: SubjectType;
+  /** 업로드 대상 과목 ID — 없으면 업로드 불가 */
+  subjectId?: string;
   subjectName: string;
+  /** 업로드 성공 후 콜백 (목록 새로고침용) */
+  onUploaded?: () => void;
 }
 
-export default function ExcelUploadModal({ visible, onClose, subjectType, subjectName }: ExcelUploadModalProps) {
+const CHOICE_KEYS = ["a", "b", "c", "d", "e"] as const;
+
+// ── 문자열 추출 유틸 (XLSX는 string|number|boolean 반환) ──
+function asString(v: unknown): string {
+  if (v == null) return "";
+  return String(v).trim();
+}
+
+/** 이론 엑셀 → theory_chapters + theory_topics 로 인서트 */
+async function uploadTheoryRows(subjectId: string, rows: ParsedRow[]): Promise<UploadResult> {
+  const result: UploadResult = { total: rows.length, success: 0, failed: 0, errors: [] };
+  const chapterMap = new Map<string, string>(); // 챕터명 → chapterId
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    try {
+      const chapterTitle = asString(row["챕터"]);
+      const title = asString(row["제목"]);
+      if (!chapterTitle || !title) throw new Error("챕터·제목 필수");
+
+      let chapterId = chapterMap.get(chapterTitle);
+      if (!chapterId) {
+        chapterId = crypto.randomUUID();
+        await createChapter(subjectId, chapterId, chapterMap.size + 1, chapterTitle, chapterMap.size);
+        chapterMap.set(chapterTitle, chapterId);
+      }
+
+      const imageStr = asString(row["이미지URL(여러개는;구분)"] ?? row["이미지URL"]);
+      const contentUrls = imageStr ? imageStr.split(";").map((s) => s.trim()).filter(Boolean) : [];
+      const body = asString(row["본문내용"]);
+      const rawType = asString(row["콘텐츠유형(text/image/mixed)"] ?? row["콘텐츠유형"]).toLowerCase();
+      const contentType: "file" | "text" | "mixed" =
+        body && contentUrls.length > 0 ? "mixed"
+        : contentUrls.length > 0 ? "file"
+        : rawType === "image" || rawType === "file" ? "file"
+        : rawType === "mixed" ? "mixed"
+        : "text";
+
+      await createTopic(chapterId, {
+        id: crypto.randomUUID(),
+        title,
+        contentType,
+        contentUrls,
+        body,
+        hasNote: false,
+        orderNum: result.success,
+      });
+      result.success++;
+    } catch (err) {
+      result.failed++;
+      result.errors.push({ row: i + 1, message: err instanceof Error ? err.message : String(err) });
+    }
+  }
+  return result;
+}
+
+/** 문제 엑셀 → problem_sections + problem_questions 로 인서트 (problemService.bulkInsertProblems 재사용) */
+async function uploadProblemRows(subjectId: string, rows: ParsedRow[]): Promise<UploadResult> {
+  const parsed: Parameters<typeof bulkInsertProblems>[1] = [];
+  const errors: { row: number; message: string }[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    try {
+      const sectionTitle = asString(row["챕터"]);
+      const questionText = asString(row["문제내용"]);
+      if (!sectionTitle || !questionText) throw new Error("챕터·문제내용 필수");
+
+      const choices = CHOICE_KEYS.map((id, idx) => {
+        const text = asString(row[`선택지${idx + 1}`]);
+        const image = asString(row[`선택지${idx + 1}_이미지URL`]);
+        return text || image ? { id, text, image: image || undefined } : null;
+      }).filter((c): c is { id: string; text: string; image?: string } => c !== null);
+
+      if (choices.length < 2) throw new Error("선택지 2개 이상 필요");
+
+      const ansNum = Number(asString(row["정답번호"]));
+      const correctAnswer = CHOICE_KEYS[Math.max(0, Math.min(ansNum - 1, choices.length - 1))];
+
+      const diffRaw = asString(row["난이도(easy/medium/hard)"] ?? row["난이도"]).toLowerCase();
+      const difficulty: Difficulty = (["easy", "medium", "hard"].includes(diffRaw) ? diffRaw : "medium") as Difficulty;
+
+      parsed.push({
+        sectionTitle,
+        questionText,
+        questionImage: asString(row["문제이미지URL"]) || undefined,
+        choices,
+        correctAnswer,
+        explanation: asString(row["해설"]) || undefined,
+        explanationImage: asString(row["해설이미지URL"]) || undefined,
+        difficulty,
+      });
+    } catch (err) {
+      errors.push({ row: i + 1, message: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
+  const insertResult = parsed.length > 0
+    ? await bulkInsertProblems(subjectId, parsed)
+    : { success: 0, failed: 0, errors: [] };
+
+  return {
+    total: rows.length,
+    success: insertResult.success,
+    failed: insertResult.failed + errors.length,
+    errors: [...errors, ...insertResult.errors],
+  };
+}
+
+/** 영상 엑셀 → video_sections + video_lectures 로 인서트 */
+async function uploadVideoRows(subjectId: string, rows: ParsedRow[]): Promise<UploadResult> {
+  const result: UploadResult = { total: rows.length, success: 0, failed: 0, errors: [] };
+  const sectionMap = new Map<string, string>();
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    try {
+      const sectionTitle = asString(row["섹션명"]);
+      const title = asString(row["강의제목"]);
+      const videoUrl = asString(row["비메오URL"]);
+      if (!sectionTitle || !title || !videoUrl) throw new Error("섹션명·강의제목·비메오URL 필수");
+
+      let sectionId = sectionMap.get(sectionTitle);
+      if (!sectionId) {
+        sectionId = crypto.randomUUID();
+        await createVideoSection(subjectId, sectionId, sectionTitle, sectionMap.size);
+        sectionMap.set(sectionTitle, sectionId);
+      }
+
+      const orderInSection = Array.from(sectionMap.values()).filter((id) => id === sectionId).length - 1;
+      await createLecture(
+        sectionId,
+        {
+          id: crypto.randomUUID(),
+          number: Number(asString(row["순서번호"])) || (result.success + 1),
+          title,
+          duration: asString(row["재생시간(MM:SS)"] ?? row["재생시간"]),
+          videoUrl,
+          thumbnailUrl: asString(row["썸네일URL"]),
+          instructor: asString(row["강사"]),
+          description: asString(row["설명"]),
+        },
+        result.success,
+      );
+      result.success++;
+    } catch (err) {
+      result.failed++;
+      result.errors.push({ row: i + 1, message: err instanceof Error ? err.message : String(err) });
+    }
+  }
+  return result;
+}
+
+export default function ExcelUploadModal({ visible, onClose, subjectType, subjectId, subjectName, onUploaded }: ExcelUploadModalProps) {
   const [parsedData, setParsedData] = useState<ParsedRow[]>([]);
   const [fileName, setFileName] = useState("");
   const [isUploading, setIsUploading] = useState(false);
@@ -57,19 +223,47 @@ export default function ExcelUploadModal({ visible, onClose, subjectType, subjec
 
   const handleUpload = useCallback(async () => {
     if (parsedData.length === 0) { toast.error("업로드할 데이터가 없습니다"); return; }
+    if (!subjectId) { toast.error("업로드 대상 과목이 선택되지 않았습니다"); return; }
     setIsUploading(true);
-    // 목업: 실제로는 Supabase에 배치 인서트
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    const result: UploadResult = {
-      total: parsedData.length,
-      success: parsedData.length,
-      failed: 0,
-      errors: [],
-    };
+
+    let result: UploadResult;
+    try {
+      if (subjectType === "theory") {
+        result = await uploadTheoryRows(subjectId, parsedData);
+      } else if (subjectType === "problems") {
+        result = await uploadProblemRows(subjectId, parsedData);
+      } else if (subjectType === "videos") {
+        result = await uploadVideoRows(subjectId, parsedData);
+      } else {
+        result = {
+          total: parsedData.length,
+          success: 0,
+          failed: parsedData.length,
+          errors: [{ row: 1, message: "패키지 대량 업로드는 아직 지원되지 않습니다" }],
+        };
+      }
+    } catch (err) {
+      result = {
+        total: parsedData.length,
+        success: 0,
+        failed: parsedData.length,
+        errors: [{ row: 0, message: err instanceof Error ? err.message : String(err) }],
+      };
+    }
+
     setUploadResult(result);
     setIsUploading(false);
-    toast.success(`${result.success}개 데이터가 업로드되었습니다`);
-  }, [parsedData]);
+
+    if (result.failed === 0) {
+      toast.success(`${result.success}개 데이터가 업로드되었습니다`);
+      onUploaded?.();
+    } else if (result.success > 0) {
+      toast(`${result.success}개 성공, ${result.failed}개 실패`, { icon: "⚠️" });
+      onUploaded?.();
+    } else {
+      toast.error(`업로드 실패 (${result.failed}개)`);
+    }
+  }, [parsedData, subjectId, subjectType, onUploaded]);
 
   if (!visible) return null;
 

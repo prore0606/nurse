@@ -84,6 +84,9 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
   const selected = filtered.find((s) => s.id === selectedId) ?? null;
   const [deleteTarget, setDeleteTarget] = useState<Subject | null>(null);
   const [createTrigger, setCreateTrigger] = useState(0);
+  /** 엑셀 업로드 성공 후 sub-section을 강제 remount해서 데이터 reload */
+  const [reloadKey, setReloadKey] = useState(0);
+  const [wizardReloadKey, setWizardReloadKey] = useState(0);
   const [showExcelUpload, setShowExcelUpload] = useState(false);
   const [theoryChapters, setTheoryChapters] = useState<TheoryChapter[]>([]);
   const [problemSections, setProblemSections] = useState<ProblemSectionType[]>([]);
@@ -599,7 +602,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
                 </div>
               </div>
 
-              <VideoSection key={newSubjectId} subjectId={newSubjectId ?? undefined} createTrigger={wizardCreateTrigger} initialSections={[
+              <VideoSection key={`${newSubjectId}-${wizardReloadKey}`} subjectId={newSubjectId ?? undefined} createTrigger={wizardCreateTrigger} initialSections={[
                 {
                   id: crypto.randomUUID(),
                   title: "기본 섹션",
@@ -614,7 +617,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
                 },
               ]} />
 
-              <ExcelUploadModal visible={wizardExcelUpload} onClose={() => setWizardExcelUpload(false)} subjectType={type} subjectName={wizardForm.name} />
+              <ExcelUploadModal visible={wizardExcelUpload} onClose={() => setWizardExcelUpload(false)} subjectType={type} subjectId={newSubjectId ?? undefined} subjectName={wizardForm.name} onUploaded={() => setWizardReloadKey((k) => k + 1)} />
 
               {/* 하단 버튼 */}
               <div className="flex justify-between mt-4 pt-3 border-t border-gray-100">
@@ -713,11 +716,11 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
                 </div>
               </div>
 
-              {type === "theory" && newSubjectId && <TheorySection key={newSubjectId} subjectId={newSubjectId} createTrigger={wizardCreateTrigger} />}
-              {type === "problems" && newSubjectId && <ProblemSectionComponent key={newSubjectId} subjectId={newSubjectId} createTrigger={wizardCreateTrigger} />}
-              {type === "packages" && <PackageSection key={newSubjectId} createTrigger={wizardCreateTrigger} initialData={[]} />}
+              {type === "theory" && newSubjectId && <TheorySection key={`${newSubjectId}-${wizardReloadKey}`} subjectId={newSubjectId} createTrigger={wizardCreateTrigger} />}
+              {type === "problems" && newSubjectId && <ProblemSectionComponent key={`${newSubjectId}-${wizardReloadKey}`} subjectId={newSubjectId} createTrigger={wizardCreateTrigger} />}
+              {type === "packages" && <PackageSection key={`${newSubjectId}-${wizardReloadKey}`} createTrigger={wizardCreateTrigger} initialData={[]} />}
 
-              <ExcelUploadModal visible={wizardExcelUpload} onClose={() => setWizardExcelUpload(false)} subjectType={type} subjectName={wizardForm.name} />
+              <ExcelUploadModal visible={wizardExcelUpload} onClose={() => setWizardExcelUpload(false)} subjectType={type} subjectId={newSubjectId ?? undefined} subjectName={wizardForm.name} onUploaded={() => setWizardReloadKey((k) => k + 1)} />
 
               {/* 하단 버튼 */}
               <div className="flex justify-between mt-4 pt-3 border-t border-gray-100">
@@ -868,11 +871,11 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
                 {type !== "problems" && <button onClick={() => setCreateTrigger((t) => t + 1)} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-hover transition-colors"><Plus size={14} /> {detailCfg.addLabel}</button>}
               </div>
             </div>
-            {type === "theory" && selectedId && <TheorySection key={selectedId} subjectId={selectedId} createTrigger={createTrigger} onChaptersChange={setTheoryChapters} />}
-            {type === "problems" && selectedId && <ProblemSectionComponent key={selectedId} subjectId={selectedId} createTrigger={createTrigger} onSectionsChange={setProblemSections} />}
-            {type === "videos" && <VideoSection key={selectedId} subjectId={selectedId ?? undefined} createTrigger={createTrigger} />}
-            {type === "packages" && <PackageSection key={selectedId} createTrigger={createTrigger} />}
-            {type !== "theory" && <ExcelUploadModal visible={showExcelUpload} onClose={() => setShowExcelUpload(false)} subjectType={type} subjectName={editForm.name} />}
+            {type === "theory" && selectedId && <TheorySection key={`${selectedId}-${reloadKey}`} subjectId={selectedId} createTrigger={createTrigger} onChaptersChange={setTheoryChapters} />}
+            {type === "problems" && selectedId && <ProblemSectionComponent key={`${selectedId}-${reloadKey}`} subjectId={selectedId} createTrigger={createTrigger} onSectionsChange={setProblemSections} />}
+            {type === "videos" && <VideoSection key={`${selectedId}-${reloadKey}`} subjectId={selectedId ?? undefined} createTrigger={createTrigger} />}
+            {type === "packages" && <PackageSection key={`${selectedId}-${reloadKey}`} createTrigger={createTrigger} />}
+            {type !== "theory" && <ExcelUploadModal visible={showExcelUpload} onClose={() => setShowExcelUpload(false)} subjectType={type} subjectId={selectedId ?? undefined} subjectName={editForm.name} onUploaded={() => setReloadKey((k) => k + 1)} />}
           </div>
 
         </div>
