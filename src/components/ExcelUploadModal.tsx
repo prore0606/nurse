@@ -98,11 +98,13 @@ async function uploadProblemRows(subjectId: string, rows: ParsedRow[]): Promise<
       const questionText = asString(row["문제내용"]);
       if (!sectionTitle || !questionText) throw new Error("챕터·문제내용 필수");
 
-      const choices = CHOICE_KEYS.map((id, idx) => {
-        const text = asString(row[`선택지${idx + 1}`]);
-        const image = asString(row[`선택지${idx + 1}_이미지URL`]);
-        return text || image ? { id, text, image: image || undefined } : null;
-      }).filter((c): c is { id: string; text: string; image?: string } => c !== null);
+      const choices = CHOICE_KEYS
+        .map((id, idx) => ({
+          id: id as string,
+          text: asString(row[`선택지${idx + 1}`]),
+          image: asString(row[`선택지${idx + 1}_이미지URL`]) || undefined,
+        }))
+        .filter((c) => c.text || c.image);
 
       if (choices.length < 2) throw new Error("선택지 2개 이상 필요");
 
