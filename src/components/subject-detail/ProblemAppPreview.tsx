@@ -105,7 +105,7 @@ export default function ProblemAppPreview({ bookTitle, sections }: ProblemAppPre
 
           {/* ── 문제 영역 (스크롤) ── */}
           <div className="flex-1 overflow-y-auto px-4 pt-4 pb-3">
-            {/* 문제 번호 + 제안/별 */}
+            {/* 문제 번호 + 건의/별 */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center">
                 <div className="bg-indigo-500 w-9 h-9 rounded-xl flex items-center justify-center mr-2">
@@ -115,7 +115,7 @@ export default function ProblemAppPreview({ bookTitle, sections }: ProblemAppPre
               </div>
               <div className="flex items-center gap-2">
                 <div className="bg-gray-100 px-2.5 py-1.5 rounded-lg">
-                  <span className="text-[11px] font-semibold text-gray-600">제안하기</span>
+                  <span className="text-[11px] font-semibold text-gray-600">건의하기</span>
                 </div>
                 <span className="text-lg text-gray-200">★</span>
               </div>
