@@ -720,6 +720,42 @@ export default function VideoSection({ subjectId, createTrigger = 0, initialSect
                   )}
 
                   <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      비메오 URL <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                        <Link size={14} />
+                      </div>
+                      <input
+                        type="text"
+                        value={form.videoUrl}
+                        onChange={(e) => {
+                          const newUrl = e.target.value;
+                          setForm((f) => ({ ...f, videoUrl: newUrl }));
+                          setVimeoInput(newUrl);
+                        }}
+                        className="w-full pl-9 pr-24 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary font-mono"
+                        placeholder="https://vimeo.com/123456789"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const id = extractVimeoId(form.videoUrl);
+                          if (id) fetchVimeoInfo(id);
+                        }}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-xs font-medium text-primary border border-primary rounded hover:bg-indigo-50 transition-colors"
+                        title="비메오에서 제목/썸네일/시간 다시 가져오기"
+                      >
+                        새로고침
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">
+                      URL 변경 후 &apos;새로고침&apos; 누르면 썸네일·제목·시간이 비메오에서 자동 갱신됩니다
+                    </p>
+                  </div>
+
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">강의 제목 <span className="text-red-500">*</span></label>
                     <input type="text" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                   </div>
