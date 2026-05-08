@@ -12,7 +12,6 @@ import {
   deleteQuestion,
   bulkInsertProblems,
 } from "../../lib/problemService";
-import { DIFFICULTY_OPTIONS } from "../../constants/subjectConfig";
 import ConfirmModal from "../ConfirmModal";
 import FormModal from "../FormModal";
 import {
@@ -37,26 +36,21 @@ function parseExcelRows(text: string): {
   choices: { id: string; text: string }[];
   correctAnswer: string;
   explanation?: string;
-  difficulty?: Difficulty;
 }[] {
   const lines = text.split("\n").filter((l) => l.trim());
   if (lines.length < 2) return [];
 
   return lines.slice(1).map((line) => {
     const cols = line.split("\t");
-    // 형식: 분류코드 | 문제유형 | 문제 | 객관식 예문1 | 객관식 예문2 | 객관식 예문3 | 객관식 예문4 | 객관식 예문5 | 정답 | 해설
-    const code = cols[0]?.trim() ?? "";
-    const sectionTitle = code ? `분류 ${code}` : "기본 섹션";
-    // cols[1] = 문제유형 (현재 무시)
-    const questionText = cols[2]?.trim() ?? "";
-    const choiceTexts = [cols[3], cols[4], cols[5], cols[6], cols[7]].filter((c) => c?.trim());
+    // 형식: 문제 | 객관식 예문1 | 객관식 예문2 | 객관식 예문3 | 객관식 예문4 | 객관식 예문5 | 정답 | 해설
+    const questionText = cols[0]?.trim() ?? "";
+    const choiceTexts = [cols[1], cols[2], cols[3], cols[4], cols[5]].filter((c) => c?.trim());
     const choices = choiceTexts.map((t, i) => ({ id: CHOICE_IDS[i], text: t?.trim() ?? "" }));
-    const ansNum = Number(cols[8]?.trim() ?? "1");
+    const ansNum = Number(cols[6]?.trim() ?? "1");
     const correctAnswer = CHOICE_IDS[Math.max(0, Math.min(ansNum - 1, choices.length - 1))];
-    const explanation = cols[9]?.trim() ?? "";
-    const difficulty: Difficulty = "medium";
+    const explanation = cols[7]?.trim() ?? "";
 
-    return { sectionTitle, questionText, choices, correctAnswer, explanation, difficulty };
+    return { sectionTitle: "기본 섹션", questionText, choices, correctAnswer, explanation };
   });
 }
 
@@ -393,8 +387,6 @@ export default function ProblemSectionComponent({ subjectId, createTrigger = 0, 
                       </div>
                     ) : (
                       section.questions.map((q, qIdx) => {
-                        const diffMap = { easy: { l: "쉬움", c: "bg-green-50 text-green-600" }, medium: { l: "보통", c: "bg-yellow-50 text-yellow-600" }, hard: { l: "어려움", c: "bg-red-50 text-red-600" } };
-                        const diff = diffMap[q.difficulty];
                         return (
                           <div
                             key={q.id}
@@ -408,9 +400,6 @@ export default function ProblemSectionComponent({ subjectId, createTrigger = 0, 
                                 {q.number}
                               </div>
                               <span className="text-sm text-gray-700 truncate flex-1">{q.text}</span>
-                              <span className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded ${diff.c}`}>
-                                {diff.l}
-                              </span>
                               <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-600">
                                 {q.choices.length}지선다
                               </span>
@@ -469,23 +458,10 @@ export default function ProblemSectionComponent({ subjectId, createTrigger = 0, 
         submitLabel={editingQuestion ? "수정" : "추가"}
       >
         <div className="space-y-4">
-          <div className="grid grid-cols-[80px_1fr] gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">번호</label>
-              <input type="number" value={questionForm.number} onChange={(e) => setQuestionForm((f) => ({ ...f, number: Number(e.target.value) }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" min={1} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">난이도</label>
-              <div className="flex gap-2 mt-1">
-                {DIFFICULTY_OPTIONS.map(({ value, label, activeClass }) => (
-                  <button key={value} type="button" onClick={() => setQuestionForm((f) => ({ ...f, difficulty: value }))}
-                    className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition-all ${questionForm.difficulty === value ? activeClass : "bg-white text-gray-400 border-gray-200"}`}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">번호</label>
+            <input type="number" value={questionForm.number} onChange={(e) => setQuestionForm((f) => ({ ...f, number: Number(e.target.value) }))}
+              className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" min={1} />
           </div>
 
           <div>
@@ -559,7 +535,7 @@ export default function ProblemSectionComponent({ subjectId, createTrigger = 0, 
               <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-700">
                 <p className="font-semibold mb-1">형식 안내 (탭으로 구분)</p>
                 <code className="block text-xs bg-blue-100 rounded p-2 mt-1 overflow-x-auto whitespace-pre">
-                  분류코드{"\t"}문제유형{"\t"}문제{"\t"}객관식 예문1{"\t"}객관식 예문2{"\t"}객관식 예문3{"\t"}객관식 예문4{"\t"}객관식 예문5{"\t"}정답{"\t"}해설
+                  문제{"\t"}객관식 예문1{"\t"}객관식 예문2{"\t"}객관식 예문3{"\t"}객관식 예문4{"\t"}객관식 예문5{"\t"}정답{"\t"}해설
                 </code>
                 <p className="text-xs mt-2 text-blue-600">첫 줄은 헤더로 무시됩니다. 엑셀에서 복사 후 붙여넣기하면 자동으로 탭 구분됩니다.</p>
               </div>
@@ -579,7 +555,7 @@ export default function ProblemSectionComponent({ subjectId, createTrigger = 0, 
                 onChange={(e) => setExcelText(e.target.value)}
                 className="w-full px-3 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary font-mono"
                 rows={12}
-                placeholder={"분류코드\t문제유형\t문제\t객관식 예문1\t객관식 예문2\t객관식 예문3\t객관식 예문4\t객관식 예문5\t정답\t해설\n14\t1\t다음 중 심장벽 구성 순서로 옳은 것은?\t...\t...\t...\t...\t...\t3\t심장벽은 안쪽부터 ..."}
+                placeholder={"문제\t객관식 예문1\t객관식 예문2\t객관식 예문3\t객관식 예문4\t객관식 예문5\t정답\t해설\n다음 중 심장벽 구성 순서로 옳은 것은?\t...\t...\t...\t...\t...\t3\t심장벽은 안쪽부터 ..."}
               />
 
               {/* 미리보기 */}

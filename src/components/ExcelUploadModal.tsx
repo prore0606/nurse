@@ -88,10 +88,9 @@ async function uploadTheoryRows(subjectId: string, rows: ParsedRow[]): Promise<U
 
 /** 문제 엑셀 → problem_sections + problem_questions 로 인서트.
  *
- * 컬럼: 분류코드 | 문제유형 | 문제 | 객관식 예문1~5 | 정답 | 해설
- * - 분류코드: 같은 코드끼리 한 섹션으로 묶음 (없으면 "기본 섹션")
- * - 문제유형: 무시 (현재 객관식만 지원)
- * - 정답: 1~5 숫자
+ * 컬럼: 문제 | 객관식 예문1~5 | 정답 | 해설
+ * 모든 문제를 단일 "기본 섹션"으로 등록. 분류코드·문제유형·난이도 컬럼이
+ * 파일에 있어도 무시한다.
  */
 async function uploadProblemRows(subjectId: string, rows: ParsedRow[]): Promise<UploadResult> {
   const parsed: Parameters<typeof bulkInsertProblems>[1] = [];
@@ -100,8 +99,6 @@ async function uploadProblemRows(subjectId: string, rows: ParsedRow[]): Promise<
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     try {
-      const code = asString(row["분류코드"]);
-      const sectionTitle = code ? `분류 ${code}` : "기본 섹션";
       const questionText = asString(row["문제"]);
       if (!questionText) throw new Error("문제 필수");
 
@@ -121,12 +118,11 @@ async function uploadProblemRows(subjectId: string, rows: ParsedRow[]): Promise<
       const correctAnswer = CHOICE_KEYS[ansNum - 1];
 
       parsed.push({
-        sectionTitle,
+        sectionTitle: "기본 섹션",
         questionText,
         choices,
         correctAnswer,
         explanation: asString(row["해설"]) || undefined,
-        difficulty: "medium",
       });
     } catch (err) {
       errors.push({ row: i + 1, message: err instanceof Error ? err.message : String(err) });
