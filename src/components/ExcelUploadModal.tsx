@@ -141,27 +141,42 @@ async function uploadProblemRows(subjectId: string, rows: ParsedRow[]): Promise<
   };
 }
 
-/** 영상 엑셀 → video_sections + video_lectures 로 인서트 */
+/** 영상 엑셀 → video_sections + video_lectures 로 인서트.
+ *
+ * 컬럼 누락 허용 규칙:
+ * - 비메오URL: 필수
+ * - 강의제목 비어있으면 → 섹션명을 강의제목으로 사용 + 기본 섹션으로 그룹핑
+ * - 섹션명·강의제목 둘 다 비어있으면 → 비메오 URL의 ID로 임시 제목
+ */
 async function uploadVideoRows(subjectId: string, rows: ParsedRow[]): Promise<UploadResult> {
   const result: UploadResult = { total: rows.length, success: 0, failed: 0, errors: [] };
   const sectionMap = new Map<string, string>();
+  // 섹션별 강의 개수 (orderNum 계산용)
+  const sectionLectureCount = new Map<string, number>();
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     try {
-      const sectionTitle = asString(row["섹션명"]);
-      const title = asString(row["강의제목"]);
+      const rawSection = asString(row["섹션명"]);
+      const rawTitle = asString(row["강의제목"]);
       const videoUrl = asString(row["비메오URL"]);
-      if (!sectionTitle || !title || !videoUrl) throw new Error("섹션명·강의제목·비메오URL 필수");
+      if (!videoUrl) throw new Error("비메오URL 필수");
+
+      // 강의제목이 비어있으면 → 섹션명을 강의제목으로, 섹션은 "기본 섹션"으로
+      const title = rawTitle || rawSection || `강의 ${i + 1}`;
+      const sectionTitle = rawTitle ? (rawSection || "기본 섹션") : "기본 섹션";
 
       let sectionId = sectionMap.get(sectionTitle);
       if (!sectionId) {
         sectionId = crypto.randomUUID();
         await createVideoSection(subjectId, sectionId, sectionTitle, sectionMap.size);
         sectionMap.set(sectionTitle, sectionId);
+        sectionLectureCount.set(sectionId, 0);
       }
 
-      const orderInSection = Array.from(sectionMap.values()).filter((id) => id === sectionId).length - 1;
+      const orderInSection = sectionLectureCount.get(sectionId) ?? 0;
+      sectionLectureCount.set(sectionId, orderInSection + 1);
+
       await createLecture(
         sectionId,
         {
@@ -174,7 +189,7 @@ async function uploadVideoRows(subjectId: string, rows: ParsedRow[]): Promise<Up
           instructor: asString(row["강사"]),
           description: asString(row["설명"]),
         },
-        result.success,
+        orderInSection,
       );
       result.success++;
     } catch (err) {
