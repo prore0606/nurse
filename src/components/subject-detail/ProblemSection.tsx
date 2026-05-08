@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { ProblemSection as ProblemSectionType, ProblemQuestion, ProblemQuestionChoice, Difficulty } from "../../types";
 import {
   fetchSectionsWithQuestions,
@@ -10,12 +10,13 @@ import {
   createQuestion,
   updateQuestion,
   deleteQuestion,
+  renumberQuestions,
 } from "../../lib/problemService";
 import ConfirmModal from "../ConfirmModal";
 import FormModal from "../FormModal";
 import {
   Plus, Pencil, Trash2, ChevronDown, ChevronUp,
-  Loader2, FileText, CirclePlus,
+  Loader2, FileText, CirclePlus, GripVertical, X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -79,6 +80,13 @@ export default function ProblemSectionComponent({ subjectId, createTrigger = 0, 
   const [editingQuestion, setEditingQuestion] = useState<ProblemQuestion | null>(null);
   const [questionSectionId, setQuestionSectionId] = useState<string>("");
   const [questionForm, setQuestionForm] = useState<QuestionForm>(emptyQuestionForm());
+
+  // 문제 상세 보기
+  const [viewingQuestion, setViewingQuestion] = useState<{ section: ProblemSectionType; question: ProblemQuestion } | null>(null);
+
+  // 드래그앤드롭 (섹션 내 문제 순서 변경)
+  const dragItem = useRef<{ sectionId: string; index: number } | null>(null);
+  const dragOverItem = useRef<{ sectionId: string; index: number } | null>(null);
 
   // 삭제 확인
   const [deleteTarget, setDeleteTarget] = useState<{ type: "section" | "question"; id: string; title: string } | null>(null);
@@ -225,6 +233,52 @@ export default function ProblemSectionComponent({ subjectId, createTrigger = 0, 
   };
 
   // ══════════════════════════════════════
+  // 드래그앤드롭 (섹션 내 문제 순서 변경)
+  // ══════════════════════════════════════
+  const handleQuestionDragStart = (sectionId: string, index: number) => {
+    dragItem.current = { sectionId, index };
+  };
+
+  const handleQuestionDragOver = (e: React.DragEvent, sectionId: string, index: number) => {
+    e.preventDefault();
+    dragOverItem.current = { sectionId, index };
+  };
+
+  const handleQuestionDrop = async (sectionId: string) => {
+    if (!dragItem.current || !dragOverItem.current) return;
+    // 같은 섹션 내에서만 재정렬 허용
+    if (dragItem.current.sectionId !== sectionId || dragOverItem.current.sectionId !== sectionId) {
+      dragItem.current = null;
+      dragOverItem.current = null;
+      return;
+    }
+    const fromIdx = dragItem.current.index;
+    const toIdx = dragOverItem.current.index;
+    dragItem.current = null;
+    dragOverItem.current = null;
+    if (fromIdx === toIdx) return;
+
+    const section = sections.find((s) => s.id === sectionId);
+    if (!section) return;
+
+    const reordered = [...section.questions];
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+    const renumbered = reordered.map((q, i) => ({ ...q, number: i + 1, orderNum: i }));
+
+    // 로컬 즉시 반영 (낙관적 업데이트)
+    setSections((prev) => prev.map((s) => (s.id === sectionId ? { ...s, questions: renumbered } : s)));
+
+    try {
+      await renumberQuestions(renumbered.map((q) => ({ id: q.id, number: q.number, orderNum: q.orderNum })));
+    } catch (err) {
+      console.error(err);
+      toast.error("순서 저장 실패");
+      await loadData();
+    }
+  };
+
+  // ══════════════════════════════════════
   // 삭제
   // ══════════════════════════════════════
   const handleConfirmDelete = async () => {
@@ -320,11 +374,24 @@ export default function ProblemSectionComponent({ subjectId, createTrigger = 0, 
                         return (
                           <div
                             key={q.id}
-                            className={`flex items-center justify-between px-4 py-3 transition-colors hover:bg-white/80 ${
+                            draggable
+                            onDragStart={() => handleQuestionDragStart(section.id, qIdx)}
+                            onDragOver={(e) => handleQuestionDragOver(e, section.id, qIdx)}
+                            onDrop={() => handleQuestionDrop(section.id)}
+                            onDragEnd={() => { dragItem.current = null; dragOverItem.current = null; }}
+                            onClick={() => setViewingQuestion({ section, question: q })}
+                            className={`flex items-center justify-between px-4 py-3 transition-colors hover:bg-white/80 cursor-pointer group ${
                               qIdx < section.questions.length - 1 ? "border-b border-gray-100" : ""
                             }`}
-                            style={{ paddingLeft: 56 }}
+                            style={{ paddingLeft: 24 }}
                           >
+                            <div
+                              className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 mr-1 shrink-0"
+                              onClick={(e) => e.stopPropagation()}
+                              title="드래그하여 순서 변경"
+                            >
+                              <GripVertical size={14} />
+                            </div>
                             <div className="flex items-center gap-2.5 flex-1 min-w-0">
                               <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
                                 {q.number}
@@ -335,11 +402,13 @@ export default function ProblemSectionComponent({ subjectId, createTrigger = 0, 
                               </span>
                             </div>
                             <div className="flex items-center gap-1 shrink-0 ml-2">
-                              <button onClick={() => openEditQuestion(section.id, q)}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); openEditQuestion(section.id, q); }}
                                 className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors" title="수정">
                                 <Pencil size={13} />
                               </button>
-                              <button onClick={() => setDeleteTarget({ type: "question", id: q.id, title: q.text.slice(0, 20) })}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setDeleteTarget({ type: "question", id: q.id, title: q.text.slice(0, 20) }); }}
                                 className="p-1.5 text-gray-400 hover:text-red-500 transition-colors" title="삭제">
                                 <Trash2 size={13} />
                               </button>
@@ -440,6 +509,93 @@ export default function ProblemSectionComponent({ subjectId, createTrigger = 0, 
           </div>
         </div>
       </FormModal>
+
+      {/* ══════════════════════════════════════ */}
+      {/* 문제 상세 보기 모달 */}
+      {/* ══════════════════════════════════════ */}
+      {viewingQuestion && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setViewingQuestion(null)} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">문제 {viewingQuestion.question.number}</h2>
+                <p className="text-xs text-gray-400 mt-0.5">{viewingQuestion.section.title}</p>
+              </div>
+              <button onClick={() => setViewingQuestion(null)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1 space-y-5">
+              {/* 문제 본문 */}
+              <p className="text-base text-gray-900 leading-7 font-medium whitespace-pre-wrap">
+                {viewingQuestion.question.text}
+              </p>
+
+              {/* 선택지 */}
+              <div className="space-y-2">
+                {viewingQuestion.question.choices.map((c, i) => {
+                  const isCorrect = c.id === viewingQuestion.question.correctAnswer;
+                  return (
+                    <div key={c.id} className={`flex items-start gap-3 px-4 py-3 rounded-xl border-2 ${
+                      isCorrect ? "border-primary bg-primary/5" : "border-gray-100 bg-gray-50/50"
+                    }`}>
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                        isCorrect ? "bg-primary text-white" : "bg-gray-200 text-gray-600"
+                      }`}>
+                        {i + 1}
+                      </div>
+                      <p className={`text-sm leading-6 flex-1 whitespace-pre-wrap ${
+                        isCorrect ? "text-gray-900 font-semibold" : "text-gray-700"
+                      }`}>
+                        {c.text}
+                      </p>
+                      {isCorrect && (
+                        <span className="shrink-0 text-[11px] font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-md">정답</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* 해설 */}
+              {viewingQuestion.question.explanation && (
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <p className="text-xs font-bold text-gray-500 mb-2">해설</p>
+                  <p className="text-sm text-gray-700 leading-6 whitespace-pre-wrap">
+                    {viewingQuestion.question.explanation}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => {
+                  const sid = viewingQuestion.section.id;
+                  const q = viewingQuestion.question;
+                  setViewingQuestion(null);
+                  openEditQuestion(sid, q);
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                <Pencil size={14} /> 수정
+              </button>
+              <button
+                onClick={() => {
+                  const q = viewingQuestion.question;
+                  setViewingQuestion(null);
+                  setDeleteTarget({ type: "question", id: q.id, title: q.text.slice(0, 20) });
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+              >
+                <Trash2 size={14} /> 삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 삭제 확인 */}
       <ConfirmModal visible={!!deleteTarget}
