@@ -4,6 +4,7 @@ import { fetchSubjectById } from "@/lib/catalogService";
 import { formatPrice } from "@/utils/format";
 import type { SubjectType } from "@/types";
 import PurchaseButton from "./PurchaseButton";
+import HtmlDetailView from "./HtmlDetailView";
 
 const TYPE_CONFIG: Record<SubjectType, { label: string; bg: string; color: string }> = {
   theory:   { label: "이론",    bg: "#eff6ff", color: "#3b82f6" },
@@ -35,17 +36,28 @@ export default async function SubjectDetailPage({
   const subject = await fetchSubjectById(id);
   if (!subject) notFound();
 
-  const cfg = TYPE_CONFIG[subject.type];
   const hasDiscount =
     subject.discountPrice != null && subject.discountPrice < subject.price;
+  const finalPrice = hasDiscount ? subject.discountPrice! : subject.price;
+
+  if (subject.descriptionHtml) {
+    return (
+      <HtmlDetailView
+        html={subject.descriptionHtml}
+        subjectId={subject.id}
+        subjectName={subject.name}
+        price={finalPrice}
+      />
+    );
+  }
+
+  const cfg = TYPE_CONFIG[subject.type];
   const discountPercent = hasDiscount
     ? Math.round((1 - subject.discountPrice! / subject.price) * 100)
     : 0;
-  const finalPrice = hasDiscount ? subject.discountPrice! : subject.price;
 
   return (
     <div style={{ maxWidth: 1080, margin: "0 auto", padding: "32px 24px 80px" }}>
-      {/* 브레드크럼 */}
       <nav style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 32 }}>
         <Link href="/store" style={{ fontSize: 13, color: "#9ca3af", textDecoration: "none", fontWeight: 500, transition: "color 0.15s" }}>
           스토어
@@ -56,14 +68,12 @@ export default async function SubjectDetailPage({
         <span style={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>{subject.name}</span>
       </nav>
 
-      {/* 메인 레이아웃 */}
       <div style={{
         display: "grid",
         gridTemplateColumns: "1fr 380px",
         gap: 48,
         alignItems: "start",
       }}>
-        {/* 왼쪽: 이미지 */}
         <div>
           <div style={{
             borderRadius: 24,
@@ -94,28 +104,8 @@ export default async function SubjectDetailPage({
               </div>
             )}
           </div>
-
-          {/* 상세 설명 이미지 */}
-          {subject.descriptionImages && subject.descriptionImages.length > 0 && (
-            <div style={{ marginTop: 48 }}>
-              <h2 style={{ fontSize: 20, fontWeight: 800, color: "#111827", marginBottom: 24, letterSpacing: "-0.03em" }}>
-                상세 정보
-              </h2>
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {subject.descriptionImages.map((img, i) => (
-                  <img
-                    key={i}
-                    src={img}
-                    alt={`상세 이미지 ${i + 1}`}
-                    style={{ width: "100%", borderRadius: 16 }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* 오른쪽: 구매 패널 (sticky) */}
         <div style={{ position: "sticky", top: 100 }}>
           <div style={{
             background: "#fff",
@@ -124,7 +114,6 @@ export default async function SubjectDetailPage({
             padding: "28px 24px",
             boxShadow: "0 4px 24px rgba(0,0,0,0.05)",
           }}>
-            {/* 타입 뱃지 */}
             <span style={{
               display: "inline-block", marginBottom: 14,
               padding: "4px 12px", borderRadius: 20,
@@ -134,7 +123,6 @@ export default async function SubjectDetailPage({
               {cfg.label}
             </span>
 
-            {/* 상품명 */}
             <h1 style={{
               fontSize: 22, fontWeight: 800, color: "#111827",
               lineHeight: 1.35, letterSpacing: "-0.03em",
@@ -143,7 +131,6 @@ export default async function SubjectDetailPage({
               {subject.name}
             </h1>
 
-            {/* 설명 */}
             <p style={{
               fontSize: 14, color: "#6b7280", lineHeight: 1.7,
               margin: "0 0 24px",
@@ -151,10 +138,8 @@ export default async function SubjectDetailPage({
               {subject.description}
             </p>
 
-            {/* 구분선 */}
             <div style={{ height: 1, background: "#f3f4f6", marginBottom: 24 }} />
 
-            {/* 가격 */}
             <div style={{ marginBottom: 24 }}>
               {hasDiscount && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
@@ -177,7 +162,6 @@ export default async function SubjectDetailPage({
               </div>
             </div>
 
-            {/* 구매 버튼 */}
             <PurchaseButton
               subjectId={subject.id}
               subjectName={subject.name}

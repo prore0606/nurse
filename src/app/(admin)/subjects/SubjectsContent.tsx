@@ -4,8 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import PageHeader from "@/components/PageHeader";
 import ConfirmModal from "@/components/ConfirmModal";
 import ExcelUploadModal from "@/components/ExcelUploadModal";
-import ImagePreview from "@/components/ImagePreview";
-import ImageAddButton from "@/components/ImageAddButton";
+import HtmlEditor from "@/components/HtmlEditor";
 import TheorySection from "@/components/subject-detail/TheorySection";
 import TheoryAppPreview from "@/components/subject-detail/TheoryAppPreview";
 import ProblemAppPreview from "@/components/subject-detail/ProblemAppPreview";
@@ -18,7 +17,6 @@ import type { Subject, SubjectType, Lecture, TheoryChapter, ProblemSection as Pr
 import { extractVimeoId, buildVimeoUrl } from "@/utils/vimeo";
 import { initialSubjects } from "@/data/subjects";
 import { SUBJECT_TYPE_CONFIG, DETAIL_TYPE_CONFIG } from "@/constants/subjectConfig";
-import { useImageUpload } from "@/hooks/useImageUpload";
 import { formatPrice } from "@/utils/format";
 import {
   fetchVideoSubjects,
@@ -95,10 +93,9 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
   // 기본정보 수정 폼 (목록에서 선택 시)
   const [editForm, setEditForm] = useState({
     name: "", description: "", imageUrl: "",
-    descriptionImages: [] as string[],
+    descriptionHtml: "",
     price: "", discountPrice: "",
   });
-  const { pickImage } = useImageUpload();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const detailRef = useRef<HTMLDivElement>(null);
 
@@ -106,7 +103,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
   const [wizardStep, setWizardStep] = useState(1);
   const [wizardForm, setWizardForm] = useState({
     name: "", description: "", imageUrl: "",
-    descriptionImages: [] as string[],
+    descriptionHtml: "",
     price: "", discountPrice: "",
   });
   const [newSubjectId, setNewSubjectId] = useState<string | null>(null);
@@ -225,7 +222,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
     if (s) {
       setEditForm({
         name: s.name, description: s.description, imageUrl: s.imageUrl,
-        descriptionImages: s.descriptionImages ?? [],
+        descriptionHtml: s.descriptionHtml ?? "",
         price: String(s.price), discountPrice: s.discountPrice ? String(s.discountPrice) : "",
       });
     }
@@ -276,6 +273,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
           name: editForm.name,
           description: editForm.description,
           imageUrl: editForm.imageUrl,
+          descriptionHtml: editForm.descriptionHtml || null,
           price: Number(editForm.price),
           discountPrice: editForm.discountPrice ? Number(editForm.discountPrice) : null,
         });
@@ -289,7 +287,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
     setSubjects((prev) => prev.map((s) =>
       s.id === selectedId ? {
         ...s, name: editForm.name, description: editForm.description,
-        imageUrl: editForm.imageUrl, descriptionImages: editForm.descriptionImages,
+        imageUrl: editForm.imageUrl, descriptionHtml: editForm.descriptionHtml || undefined,
         price: Number(editForm.price),
         discountPrice: editForm.discountPrice ? Number(editForm.discountPrice) : undefined,
       } : s
@@ -299,7 +297,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
 
   // ── 위저드 함수 ──
   const startWizard = () => {
-    setWizardForm({ name: "", description: "", imageUrl: "", descriptionImages: [], price: "", discountPrice: "" });
+    setWizardForm({ name: "", description: "", imageUrl: "", descriptionHtml: "", price: "", discountPrice: "" });
     setWizardStep(1);
     setNewSubjectId(null);
     setVimeoItems([createEmptyVimeoItem()]);
@@ -316,7 +314,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
       const newSubject: Subject = {
         id, type, name: wizardForm.name,
         description: wizardForm.description, imageUrl: wizardForm.imageUrl,
-        descriptionImages: wizardForm.descriptionImages,
+        descriptionHtml: wizardForm.descriptionHtml || undefined,
         price: Number(wizardForm.price),
         discountPrice: wizardForm.discountPrice ? Number(wizardForm.discountPrice) : undefined,
         contentCount: 0, chapterCount: 0, isActive: true,
@@ -344,6 +342,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
             name: wizardForm.name,
             description: wizardForm.description,
             imageUrl: wizardForm.imageUrl,
+            descriptionHtml: wizardForm.descriptionHtml || null,
             price: Number(wizardForm.price),
             discountPrice: wizardForm.discountPrice ? Number(wizardForm.discountPrice) : null,
           });
@@ -356,7 +355,7 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
       setSubjects((prev) => prev.map((s) =>
         s.id === newSubjectId ? {
           ...s, name: wizardForm.name, description: wizardForm.description,
-          imageUrl: wizardForm.imageUrl, descriptionImages: wizardForm.descriptionImages,
+          imageUrl: wizardForm.imageUrl, descriptionHtml: wizardForm.descriptionHtml || undefined,
           price: Number(wizardForm.price),
           discountPrice: wizardForm.discountPrice ? Number(wizardForm.discountPrice) : undefined,
         } : s
@@ -601,15 +600,13 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
                   <textarea value={wizardForm.description} onChange={(e) => setWizardForm((f) => ({ ...f, description: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" rows={2} placeholder="과목에 대한 간단한 설명" />
                 </div>
 
-                {/* 설명 이미지 */}
+                {/* 상세페이지 HTML */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">설명 이미지</label>
-                  <div className="grid grid-cols-5 gap-2">
-                    {wizardForm.descriptionImages.map((img, i) => (
-                      <ImagePreview key={i} src={img} onRemove={() => setWizardForm((f) => ({ ...f, descriptionImages: f.descriptionImages.filter((_, idx) => idx !== i) }))} size="sm" />
-                    ))}
-                    <ImageAddButton onClick={() => pickImage((url) => setWizardForm((f) => ({ ...f, descriptionImages: [...f.descriptionImages, url] })))} size="sm" />
-                  </div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">상세페이지 HTML</label>
+                  <HtmlEditor
+                    value={wizardForm.descriptionHtml}
+                    onChange={(v) => setWizardForm((f) => ({ ...f, descriptionHtml: v }))}
+                  />
                 </div>
               </div>
 
@@ -718,15 +715,13 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
                   <textarea value={wizardForm.description} onChange={(e) => setWizardForm((f) => ({ ...f, description: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" rows={2} placeholder="과목에 대한 간단한 설명" />
                 </div>
 
-                {/* 설명 이미지 */}
+                {/* 상세페이지 HTML */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">설명 이미지</label>
-                  <div className="grid grid-cols-5 gap-2">
-                    {wizardForm.descriptionImages.map((img, i) => (
-                      <ImagePreview key={i} src={img} onRemove={() => setWizardForm((f) => ({ ...f, descriptionImages: f.descriptionImages.filter((_, idx) => idx !== i) }))} size="sm" />
-                    ))}
-                    <ImageAddButton onClick={() => pickImage((url) => setWizardForm((f) => ({ ...f, descriptionImages: [...f.descriptionImages, url] })))} size="sm" />
-                  </div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">상세페이지 HTML</label>
+                  <HtmlEditor
+                    value={wizardForm.descriptionHtml}
+                    onChange={(v) => setWizardForm((f) => ({ ...f, descriptionHtml: v }))}
+                  />
                 </div>
               </div>
 
@@ -904,11 +899,11 @@ export default function SubjectsContent({ type }: { type: SubjectType }) {
                 </div>
               <div><label className="block text-xs font-medium text-gray-500 mb-1">설명</label><textarea value={editForm.description} onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" rows={2} placeholder="과목 설명" /></div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">설명 이미지</label>
-                <div className="flex flex-wrap gap-2">
-                  {editForm.descriptionImages.map((img, i) => (<ImagePreview key={i} src={img} onRemove={() => setEditForm((f) => ({ ...f, descriptionImages: f.descriptionImages.filter((_, idx) => idx !== i) }))} size="sm" />))}
-                  <ImageAddButton onClick={() => pickImage((url) => setEditForm((f) => ({ ...f, descriptionImages: [...f.descriptionImages, url] })))} size="sm" />
-                </div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">상세페이지 HTML</label>
+                <HtmlEditor
+                  value={editForm.descriptionHtml}
+                  onChange={(v) => setEditForm((f) => ({ ...f, descriptionHtml: v }))}
+                />
               </div>
               <div className="flex justify-end pt-1">
                 <button onClick={handleSaveInfo} className="flex items-center gap-1.5 px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-hover transition-colors"><Save size={14} /> 저장</button>

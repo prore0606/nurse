@@ -7,7 +7,7 @@ export interface Subject {
   name: string;
   description: string;
   imageUrl: string;
-  descriptionImages?: string[];
+  descriptionHtml?: string;
   price: number;
   discountPrice?: number;
   contentCount: number;

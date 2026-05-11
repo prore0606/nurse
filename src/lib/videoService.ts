@@ -10,6 +10,7 @@ function toSubject(row: Record<string, unknown>): Subject {
     name: row.name as string,
     description: (row.description as string) ?? "",
     imageUrl: (row.image_url as string) ?? "",
+    descriptionHtml: (row.description_html as string) ?? undefined,
     price: (row.price as number) ?? 0,
     discountPrice: (row.discount_price as number) ?? undefined,
     isActive: (row.is_active as boolean) ?? true,
@@ -46,10 +47,13 @@ function toVideoSection(
 
 // ─── video_subjects CRUD ───
 
+// 목록 조회: description_html은 크기가 크므로 제외 (상세 조회에서만 가져옴)
+const LIST_COLUMNS = "id, name, description, image_url, price, discount_price, is_active, order_num, type, created_at";
+
 export async function fetchVideoSubjects(): Promise<Subject[]> {
   const { data, error } = await supabase
     .from("video_subjects")
-    .select("*")
+    .select(LIST_COLUMNS)
     .order("order_num", { ascending: true });
 
   if (error) throw error;
@@ -92,6 +96,7 @@ export async function createVideoSubject(
       name: subject.name,
       description: subject.description,
       image_url: subject.imageUrl,
+      description_html: subject.descriptionHtml ?? null,
       price: subject.price,
       discount_price: subject.discountPrice ?? null,
       is_active: subject.isActive,
@@ -111,6 +116,7 @@ export async function updateVideoSubject(
     name: string;
     description: string;
     imageUrl: string;
+    descriptionHtml: string | null;
     price: number;
     discountPrice: number | null;
     isActive: boolean;
@@ -121,6 +127,7 @@ export async function updateVideoSubject(
   if (updates.name !== undefined) dbUpdates.name = updates.name;
   if (updates.description !== undefined) dbUpdates.description = updates.description;
   if (updates.imageUrl !== undefined) dbUpdates.image_url = updates.imageUrl;
+  if (updates.descriptionHtml !== undefined) dbUpdates.description_html = updates.descriptionHtml;
   if (updates.price !== undefined) dbUpdates.price = updates.price;
   if (updates.discountPrice !== undefined) dbUpdates.discount_price = updates.discountPrice;
   if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
