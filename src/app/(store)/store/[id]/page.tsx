@@ -40,21 +40,13 @@ export default async function SubjectDetailPage({
     subject.discountPrice != null && subject.discountPrice < subject.price;
   const finalPrice = hasDiscount ? subject.discountPrice! : subject.price;
 
-  if (subject.descriptionHtml) {
-    return (
-      <HtmlDetailView
-        html={subject.descriptionHtml}
-        subjectId={subject.id}
-        subjectName={subject.name}
-        price={finalPrice}
-      />
-    );
-  }
-
   const cfg = TYPE_CONFIG[subject.type];
   const discountPercent = hasDiscount
     ? Math.round((1 - subject.discountPrice! / subject.price) * 100)
     : 0;
+
+  const hasHtmlDetail =
+    !!subject.descriptionHtml && subject.descriptionHtml.trim().length > 0;
 
   return (
     <div style={{ maxWidth: 1080, margin: "0 auto", padding: "32px 24px 80px" }}>
@@ -170,6 +162,31 @@ export default async function SubjectDetailPage({
           </div>
         </div>
       </div>
+
+      {hasHtmlDetail && (
+        <section style={{ marginTop: 56 }}>
+          <h2 style={{
+            fontSize: 18, fontWeight: 800, color: "#111827",
+            letterSpacing: "-0.02em",
+            margin: "0 0 16px",
+          }}>
+            상품 상세
+          </h2>
+          <div style={{
+            borderRadius: 24,
+            overflow: "hidden",
+            border: "1px solid #f0f0f5",
+            background: "#fff",
+          }}>
+            <HtmlDetailView
+              html={subject.descriptionHtml!}
+              subjectId={subject.id}
+              subjectName={subject.name}
+              price={finalPrice}
+            />
+          </div>
+        </section>
+      )}
     </div>
   );
 }
